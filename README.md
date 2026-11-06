@@ -1,6 +1,6 @@
 # Answer Arcade
 
-Students answer your questions to earn lives in five arcade-style games (Maze Muncher, Ring Rush, Block Stack, Snake, Brick Breaker). Each class code has its own live leaderboard, and every run is saved so you can see each student's scores, accuracy, and the exact questions they missed.
+Students answer your questions to earn play time in six arcade-style games (Maze Muncher, Ring Rush, Block Stack, Snake, Brick Breaker, Sproutish). Each class code has its own live leaderboard, and every run is saved so you can see each student's scores, accuracy, and the exact questions they missed.
 
 - `index.html` is the whole site: the student arcade, plus your dashboard behind the **Teacher** button at the top right. Embed this one page in Google Sites.
 - The dashboard is protected by Google sign-in. Students who click **Teacher** just see a sign-in screen.

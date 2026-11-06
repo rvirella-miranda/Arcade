@@ -402,6 +402,277 @@ function BrickGame(api){
   return {reset,startLife,update,draw,hint:"Left/Right or move your mouse/finger to slide the paddle. Space or tap to launch."};
 }
 
+// ---------- PENCIL HOP (one-screen platformer) ----------
+// Legend: # block, - one-way ruler, ^ tacks, S spring, * star, E lost eraser (goal), P start, b ink blot
+function HopGame(api, theme){
+  const T=32, C=20, R=15;
+  const LEVELS=[
+    ["####################",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..........*.......#",
+     "#.........###......#",
+     "#......*...........#",
+     "#.....###..........#",
+     "#P..........^^....E#",
+     "####################"],
+    ["####################",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..............*...#",
+     "#...............E..#",
+     "#.............####.#",
+     "#.........*........#",
+     "#........---.......#",
+     "#.....*............#",
+     "#....---...........#",
+     "#P.........b.......#",
+     "####################"],
+    ["####################",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#.....*...*...*....#",
+     "#..................#",
+     "#....--..--..--....#",
+     "#P..^^^^^^^^^^^^..E#",
+     "####################"],
+    ["####################",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..........*..*....#",
+     "#..............E...#",
+     "#.........######...#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#....*.............#",
+     "#..................#",
+     "#P....S.......b..^^#",
+     "####################"],
+    ["####################",
+     "#..................#",
+     "#..................#",
+     "#...............E..#",
+     "#.............----.#",
+     "#.........*........#",
+     "#........----......#",
+     "#....*.............#",
+     "#...----...........#",
+     "#.........b........#",
+     "#........----......#",
+     "#.....*............#",
+     "#...----...........#",
+     "#P.......b.........#",
+     "####################"],
+    ["####################",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#..................#",
+     "#....*......*......#",
+     "#...--.....---.....#",
+     "#P.......^......b.E#",
+     "####...######...####"],
+    ["####################",
+     "#..................#",
+     "#.................E#",
+     "#................--#",
+     "#..................#",
+     "#..............--..#",
+     "#......*.....*.....#",
+     "#.....###...###....#",
+     "#..................#",
+     "#..................#",
+     "#..*...............#",
+     "#..................#",
+     "#..................#",
+     "#P.S..^^^^^^^^^^^^^#",
+     "####################"]
+  ];
+  let lvl=0, loop=0, grid, pl, foes, stars, t=0, banner=0, startX, startY;
+  const at=(cx,cy)=>(cy<0||cx<0||cx>=C)?"#":(cy>=R?".":grid[cy][cx]);
+  const solid=(cx,cy)=>at(cx,cy)==="#";
+  function load(){
+    const L=LEVELS[lvl%LEVELS.length];
+    grid=L.map(r=>r.split("")); foes=[]; stars=0;
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++){const c=grid[y][x];
+      if(c==="P"){startX=x*T+T/2;startY=(y+1)*T;grid[y][x]=".";}
+      else if(c==="b"){foes.push({x:x*T+T/2,y:(y+1)*T,dir:Math.random()<.5?-1:1,alive:true});grid[y][x]=".";}
+      else if(c==="*")stars++;}
+    banner=1.6;
+  }
+  function spawn(){pl={x:startX,y:startY,vx:0,vy:0,ground:true,face:1,coyote:0,buffer:0,squash:0};}
+  function startLife(){lvl=0;loop=0;load();spawn();}   // a lost life goes back to level 1
+  function reset(){startLife();}
+  const PW=18, PH=30;
+  function hitsSolid(x,y){ // feet at y, centered x
+    const l=Math.floor((x-PW/2)/T), r=Math.floor((x+PW/2-1)/T), top=Math.floor((y-PH)/T), bot=Math.floor((y-1)/T);
+    for(let cy=top;cy<=bot;cy++)for(let cx=l;cx<=r;cx++)if(solid(cx,cy))return true;
+    return false;
+  }
+  function update(dt,inp){
+    t+=dt; if(banner>0)banner-=dt;
+    const spd=210, acc=pl.ground?2200:1500;
+    let want=(inp.held.right?1:0)-(inp.held.left?1:0);
+    if(want){pl.vx+=want*acc*dt;pl.face=want;} else {const f=(pl.ground?1800:600)*dt; pl.vx=Math.abs(pl.vx)<=f?0:pl.vx-Math.sign(pl.vx)*f;}
+    pl.vx=clamp(pl.vx,-spd,spd);
+    if(inp.pressed.has("up")||inp.pressed.has("action"))pl.buffer=0.13; else pl.buffer-=dt;
+    pl.coyote=pl.ground?0.1:pl.coyote-dt;
+    if(pl.buffer>0&&pl.coyote>0){pl.vy=-650;pl.ground=false;pl.coyote=0;pl.buffer=0;pl.squash=-0.25;}
+    if(pl.vy>=0)pl.boost=false;
+    if(!pl.ground&&!pl.boost&&pl.vy<-250&&!(inp.held.up||inp.held.action))pl.vy=-250;
+    pl.vy=Math.min(900,pl.vy+1900*dt);
+    // horizontal
+    let nx=pl.x+pl.vx*dt;
+    if(hitsSolid(nx,pl.y)){ // slide to wall
+      const step=Math.sign(pl.vx); while(!hitsSolid(pl.x+step,pl.y)&&Math.abs(nx-pl.x)>=1)pl.x+=step; pl.vx=0;
+    } else pl.x=nx;
+    // vertical
+    const prevY=pl.y; let ny=pl.y+pl.vy*dt; pl.ground=false;
+    if(pl.vy>0){
+      const l=Math.floor((pl.x-PW/2)/T), r=Math.floor((pl.x+PW/2-1)/T);
+      const r0=Math.floor((prevY-1)/T)+1, r1=Math.floor(ny/T);
+      for(let cy=r0;cy<=r1;cy++){let land=false;
+        for(let cx=l;cx<=r;cx++){const c=at(cx,cy); if(c==="#"||(c==="-"&&prevY<=cy*T+1))land=true;}
+        if(land){ny=cy*T;pl.vy=0;pl.ground=true;if(prevY<ny-6)pl.squash=0.25;break;}}
+    } else if(pl.vy<0){
+      if(hitsSolid(pl.x,ny)){ny=(Math.floor((ny-PH)/T)+1)*T+PH;pl.vy=0;}
+    }
+    pl.y=ny; if(pl.squash)pl.squash*=Math.pow(0.0005,dt);
+    if(pl.y>H+60){api.lose();return;}
+    // tiles touched
+    const l=Math.floor((pl.x-PW/2+3)/T), r=Math.floor((pl.x+PW/2-4)/T), top=Math.floor((pl.y-PH+4)/T), bot=Math.floor((pl.y-2)/T);
+    for(let cy=top;cy<=bot;cy++)for(let cx=l;cx<=r;cx++){const c=at(cx,cy);
+      if(c==="*"){grid[cy][cx]=".";api.add(25);}
+      else if(c==="^"&&pl.y>cy*T+14){api.lose();return;}
+      else if(c==="E"){api.add(200+50*loop);lvl++;if(lvl%LEVELS.length===0)loop++;load();spawn();return;}}
+    // spring under feet
+    if(pl.ground){const fx=Math.floor(pl.x/T),fy=Math.floor((pl.y-2)/T); if(at(fx,fy)==="S"){pl.vy=-1060;pl.ground=false;pl.boost=true;pl.squash=-0.35;}}
+    // ink blots
+    const fs=55+loop*25+lvl%LEVELS.length*4;
+    for(const f of foes){ if(!f.alive)continue;
+      const nx2=f.x+f.dir*fs*dt, ahead=Math.floor((nx2+f.dir*11)/T), row=Math.floor((f.y-4)/T), below=at(ahead,row+1);
+      if(solid(ahead,row)||!(below==="#"||below==="-"))f.dir*=-1; else f.x=nx2;
+      if(Math.abs(f.x-pl.x)<20&&pl.y>f.y-22&&pl.y-PH<f.y){
+        if(pl.vy>0&&prevY<=f.y-12){f.alive=false;api.add(50);pl.vy=-430;pl.boost=true;}
+        else {api.lose();return;}
+      }
+    }
+  }
+  function book(g,x,y,i){const cols=["#c0564a","#4f7bbf","#6b9a3c","#d49a2a"];g.fillStyle=cols[i%4];g.fillRect(x,y,T,T);
+    g.fillStyle="rgba(255,255,255,.28)";g.fillRect(x,y,T,4);g.fillStyle="rgba(0,0,0,.25)";g.fillRect(x,y+T-3,T,3);
+    g.fillStyle="rgba(255,255,255,.55)";g.fillRect(x+6,y+12,T-12,3);g.strokeStyle="#2a1c13";g.lineWidth=2;g.strokeRect(x+1,y+1,T-2,T-2);}
+  function draw(g){
+    g.fillStyle="#fbf3dc";g.fillRect(0,0,W,H);
+    g.strokeStyle="#bcd3ea";g.lineWidth=1;for(let y=T;y<H;y+=T/2){g.beginPath();g.moveTo(0,y+.5);g.lineTo(W,y+.5);g.stroke();}
+    g.strokeStyle="#e6a3a3";g.lineWidth=2;g.beginPath();g.moveTo(52,0);g.lineTo(52,H);g.stroke();
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++){const c=grid[y][x],X=x*T,Y=y*T;
+      if(c==="#")book(g,X,Y,x*7+y*3);
+      else if(c==="-"){g.fillStyle="#e8c96a";g.fillRect(X,Y,T,10);g.strokeStyle="#7a5a1c";g.lineWidth=2;g.strokeRect(X+1,Y+1,T-2,8);
+        g.fillStyle="#7a5a1c";for(let k=4;k<T;k+=6)g.fillRect(X+k,Y+2,1.5,k%12===4?5:3);}
+      else if(c==="^"){for(let k=0;k<2;k++){const cx=X+8+k*16;g.fillStyle="#9aa3ad";g.beginPath();g.moveTo(cx-7,Y+T);g.lineTo(cx,Y+T-16);g.lineTo(cx+7,Y+T);g.fill();
+        g.fillStyle="#d84a4a";g.beginPath();g.arc(cx,Y+T-17,4,0,7);g.fill();}}
+      else if(c==="S"){g.strokeStyle="#5d6670";g.lineWidth=3;g.beginPath();for(let k=0;k<5;k++){g.lineTo(X+6+(k%2)*20,Y+T-2-k*4);}g.stroke();
+        g.fillStyle="#d84a4a";g.fillRect(X+3,Y+T-24,T-6,6);}
+      else if(c==="*")star(g,X+T/2,Y+T/2+Math.sin(t*4+x)*2,10,4.5,"#f2b81d");
+      else if(c==="E"){const bob=Math.sin(t*3)*2;g.fillStyle="#f28fae";roundRect(g,X+4,Y+10+bob,24,18,5);g.fill();g.fillStyle="#d86a8d";g.fillRect(X+4,Y+22+bob,24,6);
+        g.fillStyle="#3b2a20";g.fillRect(X+11,Y+15+bob,3,3);g.fillRect(X+19,Y+15+bob,3,3);
+        g.fillStyle="#fff";roundRect(g,X+12,Y-12+bob,30,16,6);g.fill();g.fillStyle="#3b2a20";g.font="10px Silkscreen, monospace";g.textAlign="center";g.fillText("HELP",X+27,Y-1+bob);}
+    }
+    for(const f of foes){if(!f.alive)continue;const wob=Math.sin(t*10+f.x)*2;
+      g.fillStyle="#1f2a6b";g.beginPath();g.ellipse(f.x,f.y-10,13+wob*.5,10-wob*.3,0,0,7);g.fill();
+      g.beginPath();g.arc(f.x-9,f.y-2,3,0,7);g.arc(f.x+9,f.y-2,3,0,7);g.arc(f.x,f.y-1,3,0,7);g.fill();
+      g.fillStyle="#fff";g.beginPath();g.arc(f.x-4+f.dir*2,f.y-12,3.2,0,7);g.arc(f.x+4+f.dir*2,f.y-12,3.2,0,7);g.fill();
+      g.fillStyle="#000";g.beginPath();g.arc(f.x-4+f.dir*3,f.y-12,1.5,0,7);g.arc(f.x+4+f.dir*3,f.y-12,1.5,0,7);g.fill();}
+    // pencil hero
+    const s=pl.squash||0, w=16*(1+s), h=PH*(1-s), x=pl.x, y=pl.y;
+    g.save();g.translate(x,y);
+    g.fillStyle="#3b2a20";const step=pl.ground&&Math.abs(pl.vx)>20?Math.sin(t*18)*3:0;g.fillRect(-7+step,-4,6,4);g.fillRect(1-step,-4,6,4);
+    g.fillStyle="#f4c430";g.fillRect(-w/2,-h+10,w,h-18);
+    g.fillStyle="#e0a91a";g.fillRect(-w/2,-h+10,w*0.3,h-18);
+    g.fillStyle="#f1d3a5";g.beginPath();g.moveTo(-w/2,-8);g.lineTo(w/2,-8);g.lineTo(0,-1);g.fill();
+    g.fillStyle="#3b2a20";g.beginPath();g.moveTo(-3,-4);g.lineTo(3,-4);g.lineTo(0,-1);g.fill();
+    g.fillStyle="#aab2bb";g.fillRect(-w/2,-h+6,w,5);g.fillStyle="#f28fae";roundRect(g,-w/2,-h-2,w,9,3);g.fill();
+    g.fillStyle="#fff";g.beginPath();g.arc(-3+pl.face*2,-h+17,3,0,7);g.arc(4+pl.face*2,-h+17,3,0,7);g.fill();
+    g.fillStyle="#111";g.beginPath();g.arc(-3+pl.face*3,-h+17,1.5,0,7);g.arc(4+pl.face*3,-h+17,1.5,0,7);g.fill();
+    g.restore();
+    g.fillStyle="#3b2a20";g.font="12px Silkscreen, monospace";g.textAlign="left";g.fillText("LEVEL "+(lvl+1),62,52);
+    g.textAlign="right";g.fillText("FIND THE LOST ERASER",W-42,52);
+    if(banner>0){g.textAlign="center";g.font="40px Silkscreen, monospace";g.lineWidth=6;g.strokeStyle="#fbf3dc";g.strokeText("LEVEL "+(lvl+1),W/2,H/2-40);g.fillStyle="#2e7d86";g.fillText("LEVEL "+(lvl+1),W/2,H/2-40);}
+  }
+  function drawSprout(g){
+    const sky=g.createLinearGradient(0,0,0,H);sky.addColorStop(0,"#9fd8f0");sky.addColorStop(1,"#e9f6d6");g.fillStyle=sky;g.fillRect(0,0,W,H);
+    g.fillStyle="rgba(255,240,170,.9)";g.beginPath();g.arc(520,96,30,0,7);g.fill();
+    g.fillStyle="rgba(255,255,255,.85)";for(const [cx,cy] of [[150,90],[360,70]]){g.beginPath();g.arc(cx,cy,16,0,7);g.arc(cx+18,cy-8,20,0,7);g.arc(cx+40,cy,16,0,7);g.fill();}
+    g.fillStyle="#b6dd9a";g.beginPath();g.moveTo(0,H);for(let x=0;x<=W;x+=10)g.lineTo(x,330-Math.sin(x*0.012)*30-Math.sin(x*0.031)*12);g.lineTo(W,H);g.fill();
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++){const c=grid[y][x],X=x*T,Y=y*T;
+      if(c==="#"){g.fillStyle="#8a5a34";g.fillRect(X,Y,T,T);g.fillStyle="#734826";
+        for(let k=0;k<4;k++){const sx=(x*37+y*11+k*13)%26+3,sy=(x*17+y*29+k*7)%24+5;g.fillRect(X+sx,Y+sy,3,2);}
+        if(!(y>0&&grid[y-1][x]==="#")){g.fillStyle="#5fb53a";g.fillRect(X,Y,T,8);g.fillStyle="#4a9a2c";g.fillRect(X,Y+7,T,2);
+          g.fillStyle="#6fcf45";for(let k=2;k<T;k+=6){g.beginPath();g.moveTo(X+k,Y+1);g.lineTo(X+k+2,Y-5);g.lineTo(X+k+4,Y+1);g.fill();}}}
+      else if(c==="-"){g.fillStyle="#c58d50";g.fillRect(X,Y,T,10);g.fillStyle="#9c6a35";g.fillRect(X,Y+8,T,2);g.fillStyle="#6b4520";g.fillRect(X+4,Y+4,2,2);g.fillRect(X+T-6,Y+4,2,2);}
+      else if(c==="^"){g.fillStyle="#2f6b2a";for(let k=0;k<3;k++){const cx=X+5+k*11;g.beginPath();g.moveTo(cx-5,Y+T);g.lineTo(cx,Y+T-17);g.lineTo(cx+5,Y+T);g.fill();}
+        g.fillStyle="#3d8a35";g.fillRect(X,Y+T-5,T,5);g.fillStyle="#c9334a";g.beginPath();g.arc(X+11,Y+T-8,2.5,0,7);g.arc(X+22,Y+T-10,2.5,0,7);g.fill();}
+      else if(c==="S"){g.fillStyle="#f3ead6";g.fillRect(X+11,Y+T-12,10,12);g.fillStyle="#d9423a";g.beginPath();g.ellipse(X+T/2,Y+T-12,15,10,0,Math.PI,0);g.fill();
+        g.fillStyle="#fff";g.beginPath();g.arc(X+10,Y+T-17,2.5,0,7);g.arc(X+20,Y+T-19,3,0,7);g.arc(X+25,Y+T-14,2,0,7);g.fill();}
+      else if(c==="*"){const bob=Math.sin(t*4+x)*2,cx=X+T/2,cy=Y+T/2+bob;g.fillStyle="#3aa0e6";g.beginPath();g.moveTo(cx,cy-11);g.quadraticCurveTo(cx+9,cy,cx,cy+8);g.quadraticCurveTo(cx-9,cy,cx,cy-11);g.fill();
+        g.fillStyle="rgba(255,255,255,.7)";g.beginPath();g.arc(cx-2.5,cy+1,2,0,7);g.fill();}
+      else if(c==="E"){const bob=Math.sin(t*3)*1.5;g.fillStyle="#6f9fc7";roundRect(g,X+5,Y+12+bob,20,18,4);g.fill();g.fillStyle="#5a86ab";g.fillRect(X+5,Y+24+bob,20,6);
+        g.strokeStyle="#6f9fc7";g.lineWidth=4;g.beginPath();g.moveTo(X+24,Y+18+bob);g.lineTo(X+33,Y+8+bob);g.stroke();g.fillStyle="#6f9fc7";g.fillRect(X+30,Y+5+bob,6,4);
+        g.strokeStyle="#5a86ab";g.lineWidth=3;g.beginPath();g.arc(X+15,Y+12+bob,7,Math.PI,0);g.stroke();
+        g.fillStyle="#fff";g.globalAlpha=.6+.4*Math.sin(t*5);star(g,X+4,Y+6,5,2,"#fff");g.globalAlpha=1;}
+    }
+    for(const f of foes){if(!f.alive)continue;const sx=f.x,sy=f.y;
+      g.fillStyle="#a7a39a";roundRect(g,sx-14,sy-7,28,7,3);g.fill();g.fillRect(sx+f.dir*9-2,sy-14,4,8);
+      g.fillStyle="#222";g.beginPath();g.arc(sx+f.dir*10,sy-15,2,0,7);g.fill();
+      g.fillStyle="#e3953a";g.beginPath();g.arc(sx-f.dir*2,sy-12,9,0,7);g.fill();g.strokeStyle="#8a4f17";g.lineWidth=2;g.beginPath();
+      for(let a=0;a<9;a+=0.3){const r=a*0.9;g.lineTo(sx-f.dir*2+Math.cos(a)*r,sy-12+Math.sin(a)*r);}g.stroke();}
+    // sprout hero
+    const s=pl.squash||0, w=18*(1+s), h=PH*(1-s), x=pl.x, y=pl.y;
+    g.save();g.translate(x,y);
+    g.fillStyle="#5a3a22";const step=pl.ground&&Math.abs(pl.vx)>20?Math.sin(t*18)*3:0;g.fillRect(-7+step,-4,6,4);g.fillRect(1-step,-4,6,4);
+    g.fillStyle="#e8c79a";g.beginPath();g.ellipse(0,-h*0.36,w/2,h*0.36,0,0,7);g.fill();
+    g.fillStyle="#d4ad7a";g.beginPath();g.ellipse(-w*0.18,-h*0.32,w*0.18,h*0.26,0,0,7);g.fill();
+    g.strokeStyle="#4a9a2c";g.lineWidth=3;g.beginPath();g.moveTo(0,-h*0.7);g.quadraticCurveTo(-pl.face*2,-h*0.9,0,-h-2);g.stroke();
+    const sway=Math.sin(t*6)*0.15;
+    g.fillStyle="#6fcf45";g.save();g.translate(0,-h-1);g.rotate(-0.5+sway);g.beginPath();g.ellipse(-8,0,9,5,0,0,7);g.fill();g.restore();
+    g.save();g.translate(0,-h-1);g.rotate(0.5+sway);g.beginPath();g.ellipse(8,0,9,5,0,0,7);g.fill();g.restore();
+    g.fillStyle="#fff";g.beginPath();g.arc(-3+pl.face*2,-h*0.42,3,0,7);g.arc(4+pl.face*2,-h*0.42,3,0,7);g.fill();
+    g.fillStyle="#111";g.beginPath();g.arc(-3+pl.face*3,-h*0.42,1.5,0,7);g.arc(4+pl.face*3,-h*0.42,1.5,0,7);g.fill();
+    g.fillStyle="#e88a8a";g.beginPath();g.arc(-6+pl.face*2,-h*0.3,2,0,7);g.arc(7+pl.face*2,-h*0.3,2,0,7);g.fill();
+    g.restore();
+    g.fillStyle="#2f4a1f";g.font="12px Silkscreen, monospace";g.textAlign="left";g.fillText("LEVEL "+(lvl+1),44,52);
+    g.textAlign="right";g.fillText("FIND THE WATERING CAN",W-44,52);
+    if(banner>0){g.textAlign="center";g.font="40px Silkscreen, monospace";g.lineWidth=6;g.strokeStyle="#e9f6d6";g.strokeText("LEVEL "+(lvl+1),W/2,H/2-40);g.fillStyle="#3d7a37";g.fillText("LEVEL "+(lvl+1),W/2,H/2-40);}
+  }
+  if(theme==="sprout") return {reset,startLife,update,draw:drawSprout,hint:"Left/Right to move, Up or Space to jump (hold for higher). Collect water drops, stomp snails, reach the watering can. Losing a life sends you back to level 1."};
+  return {reset,startLife,update,draw,hint:"Left/Right to move, Up or Space to jump (hold for higher). Grab stars, stomp ink blots, reach the eraser. Losing a life sends you back to level 1."};
+}
+
 function roundRect(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();}
 function star(g,x,y,R,r,c){g.fillStyle=c;g.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r:R;g.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr);}g.closePath();g.fill();}
 export function bigText(g,s,c){g.textAlign="center";g.font="40px Silkscreen, monospace";g.lineWidth=6;g.strokeStyle="#07061a";g.strokeText(s,W/2,H/2);g.fillStyle=c;g.fillText(s,W/2,H/2);}
@@ -411,6 +682,7 @@ export const GAMES={
   rush:{name:"Ring Rush",desc:"Run fast, jump gaps, grab rings.",color:"var(--pink)",make:RunnerGame},
   stack:{name:"Block Stack",desc:"Drop blocks and clear lines.",color:"var(--violet)",make:StackGame},
   snake:{name:"Snake",desc:"Eat, grow, don't bite yourself.",color:"var(--lime)",make:SnakeGame},
-  brick:{name:"Brick Breaker",desc:"Bounce the ball, smash bricks.",color:"var(--orange)",make:BrickGame}
+  brick:{name:"Brick Breaker",desc:"Bounce the ball, smash bricks.",color:"var(--orange)",make:BrickGame},
+  hop:{name:"Sproutish",desc:"Hop through garden levels. Reach the watering can.",color:"var(--cyan)",make:api=>HopGame(api,"sprout")}
 };
 

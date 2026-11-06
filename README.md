@@ -1,6 +1,6 @@
 # Answer Arcade
 
-Students answer your questions to earn play time in six arcade-style games (Maze Muncher, Ring Rush, Block Stack, Snake, Brick Breaker, Sproutish). Each class code has its own live leaderboard, and every run is saved so you can see each student's scores, accuracy, and the exact questions they missed.
+Students answer your questions to earn play time in six arcade-style games (Maze Muncher, Ring Rush, Block Stack, Snake, Brick Breaker, Sproutish). Students just type their name and pick a question set (no accounts or sign-in). Each question set has its own live leaderboard, and every run is saved so you can see each student's scores, accuracy, and the exact questions they missed.
 
 - `index.html` is the whole site: the student arcade, plus your dashboard behind the **Teacher** button at the top right. Embed this one page in Google Sites.
 - The dashboard is protected by Google sign-in. Students who click **Teacher** just see a sign-in screen.
@@ -24,7 +24,6 @@ The site works right away in **demo mode**: data stays in your own browser, and 
 1. Go to https://console.firebase.google.com and sign in with your school Google account. Click **Create a project** (Google Analytics isn't needed).
 2. **Firestore:** in the left menu choose **Build → Firestore Database → Create database**. Pick a location near you and start in **production mode**.
 3. **Sign-in:** choose **Build → Authentication → Get started**. Turn on two providers:
-   - **Anonymous**. Students use this automatically, so they don't need accounts.
    - **Google**. This is for your teacher sign-in.
 4. **Authorized domain:** in **Authentication → Settings → Authorized domains**, click **Add domain** and enter `YOUR-GITHUB-NAME.github.io`.
 5. **Rules:** open **Firestore Database → Rules**, delete what's there, paste the whole `firestore.rules` file from this repo, and click **Publish**.
@@ -42,10 +41,10 @@ These config values are meant to be public. Your data is protected by the rules 
 ## 4. Make a class and add it to Google Sites
 
 1. Open your arcade (on your Google Site or at `https://YOUR-GITHUB-NAME.github.io/answer-arcade/`), click **Teacher** at the top right, and click **Sign in with Google**. If sign-in won't open inside Google Sites, click **Open in a new tab** and sign in there.
-2. Go to **Class codes & questions**. Upload an Excel/CSV file or paste your questions, choose the settings, and click **Create class code**.
+2. Go to **Question sets**. Upload an Excel/CSV file or paste your questions, choose the settings, and click **Save question set**. Untick **Students can see this set** to hide an old set from the list.
 3. In Google Sites, click **Insert → Embed → By URL** and paste `https://YOUR-GITHUB-NAME.github.io/answer-arcade/`. Choose **Whole page**, insert it, and drag the box taller (about 1100 px) so the games fit.
-   - **Tip:** to skip typing the code, embed `https://YOUR-GITHUB-NAME.github.io/answer-arcade/?code=ABCDE` and use a separate page for each class.
-4. Students type the class code and their **first name and last initial**, then play. They click the game screen once so the arrow keys work.
+   - **Tip:** to pre-pick a set, embed `https://YOUR-GITHUB-NAME.github.io/answer-arcade/?code=ABCDE` (the set's code is shown in your list).
+4. Students type their **first name and last initial**, pick the question set from the list, and press **Start**. No accounts or sign-in. They click the game screen once so the arrow keys work.
 
 ## Question file format
 
@@ -62,7 +61,7 @@ One question per row. Column A is the question, column B is the right answer, an
 - Rows with wrong choices become multiple choice, and rows without them become typed answers. You can change this per class with **Answer style**.
 - For typed answers, separate other accepted answers with `;`. Capital letters and extra spaces are ignored.
 - From Word or Google Docs, copy and paste lines like `Q: …` and `A: …` (and optional `W: …` wrong answers).
-- To change a class's questions later, use **Edit questions** on the dashboard. The code and student progress stay the same.
+- To change a class's questions later, use **Edit questions** on the dashboard. The set's progress and leaderboard stay the same.
 
 ## What the dashboard shows
 

@@ -14,26 +14,25 @@ service cloud.firestore {
           'r.miranda@ascensionoakpark.com'
         ];
     }
-    function signedIn() { return request.auth != null; }
     function classExists(code) {
       return code is string && exists(/databases/$(database)/documents/classes/$(code));
     }
     function goodScore(n) { return n is int && n >= 0 && n < 10000000; }
 
-    // Question sets. Students can open one class by its code, but can't list or change them.
+    // Question sets. Anyone using the arcade can see the list and open a set (no sign-in needed).
+    // Only teachers can create, change or delete them.
     match /classes/{code} {
-      allow get: if signedIn();
-      allow list, create, update, delete: if isTeacher();
+      allow get, list: if true;
+      allow create, update, delete: if isTeacher();
     }
 
-    // One document per finished run (student progress). Students can only add; only teachers can read.
+    // One document per finished run (student progress). Students can only add, never read or change.
+    // Only teachers can read progress.
     match /runs/{runId} {
-      allow create: if signedIn()
-        && request.resource.data.keys().hasOnly(['code','name','nameKey','game','score','right','wrong','answers','uid','endedAt'])
-        && request.resource.data.uid == request.auth.uid
+      allow create: if request.resource.data.keys().hasOnly(['code','name','nameKey','game','score','right','wrong','answers','endedAt'])
         && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 24
         && request.resource.data.nameKey is string && request.resource.data.nameKey.size() <= 24
-        && request.resource.data.game in ['maze','rush','stack','snake','brick']
+        && request.resource.data.game is string && request.resource.data.game.size() <= 12
         && goodScore(request.resource.data.score)
         && request.resource.data.right is int && request.resource.data.wrong is int
         && request.resource.data.answers is list && request.resource.data.answers.size() <= 300
@@ -43,19 +42,17 @@ service cloud.firestore {
       allow update: if false;
     }
 
-    // Best score per student per game per class. Everyone in the arcade can read it.
-    // A student entry can only go up, and its id must match its contents.
+    // Best score per student per game per question set. Everyone can read it.
+    // An entry can only go up, and its id must match its contents.
     match /leaderboard/{entryId} {
-      allow read: if signedIn();
-      allow create: if signedIn()
-        && request.resource.data.keys().hasOnly(['code','game','name','nameKey','best','updatedAt'])
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['code','game','name','nameKey','best','updatedAt'])
         && entryId == request.resource.data.code + '_' + request.resource.data.game + '_' + request.resource.data.nameKey
-        && request.resource.data.game in ['maze','rush','stack','snake','brick']
+        && request.resource.data.game is string && request.resource.data.game.size() <= 12
         && request.resource.data.name is string && request.resource.data.name.size() <= 24
         && goodScore(request.resource.data.best)
         && classExists(request.resource.data.code);
-      allow update: if signedIn()
-        && request.resource.data.keys().hasOnly(['code','game','name','nameKey','best','updatedAt'])
+      allow update: if request.resource.data.keys().hasOnly(['code','game','name','nameKey','best','updatedAt'])
         && request.resource.data.code == resource.data.code
         && request.resource.data.game == resource.data.game
         && request.resource.data.nameKey == resource.data.nameKey

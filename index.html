@@ -26,11 +26,11 @@
   <section id="view-home" class="stack" style="gap:24px">
     <div class="card join-grid">
       <div class="stack">
-        <h2>Join your class</h2>
+        <h2>Who's playing?</h2>
         <form id="join-form" class="row" autocomplete="off">
-          <div class="field"><label for="join-code">Class code</label><input type="text" id="join-code" maxlength="6" placeholder="ABC12"></div>
-          <div class="field"><label for="join-nick">Your nickname</label><input type="text" id="join-nick" maxlength="16" placeholder="e.g. Jordan R."></div>
-          <button class="btn" type="submit" id="join-btn">Join</button>
+          <div class="field"><label for="join-nick">Your name</label><input type="text" id="join-nick" maxlength="16" placeholder="First name + last initial"></div>
+          <div class="field grow"><label for="join-set">Question set</label><select id="join-set"><option value="">Loading question sets…</option></select></div>
+          <button class="btn" type="submit" id="join-btn">Start</button>
         </form>
         <p id="join-msg" class="msg"></p>
         <div id="ctx-banner" class="banner">
@@ -39,9 +39,9 @@
         </div>
       </div>
       <ol class="how">
-        <li><span class="n">1</span><span><b>Pick a game</b> below.</span></li>
+        <li><span class="n">1</span><span><b>Type your name and pick your question set,</b> then pick a game below.</span></li>
         <li><span class="n">2</span><span><b>Answer a question.</b> Get it right to earn play time.</span></li>
-        <li><span class="n">3</span><span><b id="how-play">Play for up to 45 seconds</b>, or until you lose that life. Then answer the next question to keep going. Your score keeps adding up.</span></li>
+        <li><span class="n">3</span><span><b id="how-play">Play for up to 45 seconds</b><span id="how-play2">, or until you lose that life.</span> Then answer the next question to keep going. Your score keeps adding up.</span></li>
         <li><span class="n">4</span><span>Your run ends when every question has been asked, or after <b id="how-misses">3</b> wrong answers. Every run is saved for your teacher, and your best score goes on the class board.</span></li>
       </ol>
     </div>
@@ -115,7 +115,7 @@
   <section id="t-app" class="stack" hidden style="gap:20px">
     <div class="tabs" role="tablist" style="align-self:flex-start">
       <button class="tab" id="tab-progress" role="tab" aria-selected="true" type="button">Student progress</button>
-      <button class="tab" id="tab-classes" role="tab" aria-selected="false" type="button">Class codes &amp; questions</button>
+      <button class="tab" id="tab-classes" role="tab" aria-selected="false" type="button">Question sets</button>
     </div>
 
     <!-- PROGRESS -->
@@ -183,7 +183,7 @@ First U.S. president| George Washington;Washington</div>
         </div>
 
         <div class="card stack">
-          <h2 id="t-step2">2 · Make a class code</h2>
+          <h2 id="t-step2">2 · Save the question set</h2>
           <div class="field"><label for="t-title">Set name</label><input type="text" id="t-title" maxlength="60" placeholder="e.g. Unit 3 Review – 2nd period"></div>
           <div class="row">
             <div class="field"><label for="t-mode">Answer style</label>
@@ -198,18 +198,18 @@ First U.S. president| George Washington;Washington</div>
               <select id="t-time"><option value="30">30 seconds</option><option value="45" selected>45 seconds</option><option value="60">60 seconds</option><option value="90">90 seconds</option><option value="0">Until they lose the life</option></select></div>
           </div>
           <div class="row">
-            <button class="btn" id="t-create" type="button">Create class code</button>
+            <button class="btn" id="t-create" type="button">Save question set</button>
             <button class="btn ghost" id="t-cancel-edit" type="button" hidden>Cancel editing</button>
           </div>
           <p id="t-create-msg" class="msg"></p>
           <div id="t-newcode" hidden class="codebox">
             <span class="c" id="t-code-val">—</span>
             <div class="stack" style="gap:6px">
-              <span style="color:var(--muted);font-size:.9rem">Students type this code on the arcade page.</span>
+              <span style="color:var(--muted);font-size:.9rem">Students can now pick this set from the list. The code is only needed for a direct link (…/Arcade/?code=CODE).</span>
               <button class="btn alt small" id="t-copy" type="button">Copy code</button>
             </div>
           </div>
-          <h3 style="margin-top:8px">Your class codes</h3>
+          <h3 style="margin-top:8px">Your question sets</h3>
           <ul class="classes" id="t-classes"><li class="m">Loading…</li></ul>
         </div>
       </div>

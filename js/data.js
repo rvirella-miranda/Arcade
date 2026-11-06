@@ -1,6 +1,7 @@
 // Data layer. Uses Firebase (Firestore + Auth) when js/firebase-config.js is filled in,
 // otherwise a DEMO store kept in this browser's localStorage so you can try everything first.
-import { firebaseConfig, TEACHER_EMAILS } from "./firebase-config.js";
+// Load the settings file fresh every time, so edits on GitHub show up right away instead of after the browser's 10-minute cache.
+const { firebaseConfig, TEACHER_EMAILS } = await import("./firebase-config.js?t=" + Date.now());
 import { SAMPLE, nameKey } from "./questions.js";
 
 const FB = "https://www.gstatic.com/firebasejs/10.12.2/";
@@ -88,7 +89,7 @@ export async function listClasses(){
   return s.docs.map(d => ({ code:d.id, ...d.data(), createdAt: ms(d.data().createdAt) }));
 }
 export async function saveClass(code, data){
-  const body = { title:data.title, questions:data.questions, mode:data.mode, misses:data.misses, count:data.questions.length };
+  const body = { title:data.title, questions:data.questions, mode:data.mode, misses:data.misses, playTime:data.playTime ?? 45, count:data.questions.length };
   if(!configured){ const d = dload(); const old = d.classes[code]; d.classes[code] = { ...body, createdAt: old ? old.createdAt : Date.now() }; dsave(d); return code; }
   const { db, F } = await fbInit();
   const ref = F.doc(db, "classes", code); const old = await F.getDoc(ref);

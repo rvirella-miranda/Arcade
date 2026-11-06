@@ -9,7 +9,7 @@ const store = {
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
 
-const PRACTICE = { code:null, title:"Practice", questions:SAMPLE, mode:"auto", misses:3 };
+const PRACTICE = { code:null, title:"Practice", questions:SAMPLE, mode:"auto", misses:3, playTime:45 };
 let ctxSet = PRACTICE;
 let nick = store.get("aa-nick") || "";
 let board = [], boardState = "idle", unwatch = null, boardGame = "maze";
@@ -22,23 +22,35 @@ const release = k => { input.held[k] = false; };
 
 /* ---------------- controller ---------------- */
 const cv = $("#cv"), cx = cv.getContext("2d"), overlay = $("#overlay");
-const A = { gid:null, game:null, state:"idle", score:0, misses:0, right:0, paused:false, token:0, readyT:0, queue:[], mcKeys:null, best:0, answers:[] };
+const A = { gid:null, game:null, state:"idle", score:0, misses:0, right:0, paused:false, token:0, readyT:0, queue:[], mcKeys:null, best:0, answers:[], timeLeft:0, needLife:true };
 const api = {
   add(n){ A.score += n; $("#hud-score").textContent = A.score; },
   lose(){
     if(A.state !== "playing") return;
-    A.state = "roundover"; const tok = A.token;
+    A.state = "roundover"; A.needLife = true; const tok = A.token; showTime();
     showOverlay(`<div class="center"><div class="big bad">ROUND OVER</div><p style="color:var(--muted)">Score so far: <b style="color:var(--ink)">${A.score}</b>. Answer the next question to keep playing.</p></div>`);
     setTimeout(() => { if(tok === A.token && A.state === "roundover") askQuestion(); }, 1400);
   }
 };
+let shownTime = null;
+function showTime(){
+  const el = $("#hud-time"); if(!el) return;
+  const v = !ctxSet.playTime ? "∞" : A.state === "playing" || A.state === "ready" ? String(Math.max(0, Math.ceil(A.timeLeft))) : "–";
+  if(v !== shownTime){ el.textContent = v; shownTime = v; }
+  el.classList.toggle("low", !!ctxSet.playTime && (A.state === "playing") && A.timeLeft <= 10);
+}
+function timeUp(){
+  A.state = "roundover"; A.needLife = false; const tok = A.token; showTime();
+  showOverlay(`<div class="center"><div class="big">TIME'S UP!</div><p style="color:var(--muted)">Score so far: <b style="color:var(--ink)">${A.score}</b>. Answer the next question to keep playing from right here.</p></div>`);
+  setTimeout(() => { if(tok === A.token && A.state === "roundover") askQuestion(); }, 1400);
+}
 function showOverlay(html){ overlay.innerHTML = html; overlay.hidden = false; }
 function hideOverlay(){ overlay.hidden = true; overlay.innerHTML = ""; }
 function renderPips(){ const p = $("#hud-pips"); p.innerHTML = ""; for(let i=0;i<ctxSet.misses;i++){ const s = document.createElement("span"); s.className = "pip" + (i < A.misses ? " used" : ""); p.appendChild(s); } }
 
 function startRun(gid){
   A.token++; A.gid = gid; A.game = GAMES[gid].make(api); A.game.reset();
-  Object.assign(A, { score:0, misses:0, right:0, paused:false, queue:[], answers:[] });
+  Object.assign(A, { score:0, misses:0, right:0, paused:false, queue:[], answers:[], timeLeft:0, needLife:true }); showTime();
   A.best = getBest(gid);
   $("#hud-game").textContent = GAMES[gid].name; $("#hud-game").style.color = GAMES[gid].color;
   $("#hud-score").textContent = "0"; $("#hud-best").textContent = A.best; $("#hud-right").textContent = "0";
@@ -84,9 +96,11 @@ function resolve(ok, disp){
   A.state = "answered"; A.mcKeys = null; const tok = A.token;
   if(ok){
     A.right++; $("#hud-right").textContent = A.right;
-    showOverlay(`<div class="center"><div class="big good">CORRECT!</div><p style="color:var(--muted)">+1 life. Get ready…</p></div>`);
+    showOverlay(`<div class="center"><div class="big good">CORRECT!</div><p style="color:var(--muted)">${ctxSet.playTime ? `You get ${ctxSet.playTime} seconds of play.` : "+1 life."} Get ready…</p></div>`);
     setTimeout(() => { if(tok !== A.token) return; hideOverlay(); if(document.activeElement) document.activeElement.blur();
-      A.game.startLife(); A.state = "ready"; A.readyT = 1.1; }, 900);
+      if(A.needLife) A.game.startLife(); // after time's up, the game picks up right where it stopped
+      A.needLife = false; A.timeLeft = ctxSet.playTime || 0; showTime();
+      A.state = "ready"; A.readyT = 1.1; }, 900);
   } else {
     A.misses++; renderPips();
     const out = A.misses >= ctxSet.misses, left = ctxSet.misses - A.misses;
@@ -135,7 +149,10 @@ function frame(ts){
   if($("#view-play").hidden){ cancelAnimationFrame(raf); raf = null; return; }
   const dt = Math.min(0.033, (ts - last) / 1000 || 0); last = ts;
   if(A.state === "ready"){ A.readyT -= dt; if(A.readyT <= 0){ A.state = "playing"; input.pressed.clear(); } }
-  else if(A.state === "playing" && !A.paused) A.game.update(dt, input);
+  else if(A.state === "playing" && !A.paused){
+    A.game.update(dt, input);
+    if(A.state === "playing" && ctxSet.playTime){ A.timeLeft -= dt; showTime(); if(A.timeLeft <= 0) timeUp(); }
+  }
   input.pressed.clear();
   cx.save(); A.game.draw(cx); cx.restore();
   if(A.state === "ready") bigText(cx, A.readyT > 0.35 ? "GET READY" : "GO!", A.readyT > 0.35 ? "#3fe0ff" : "#5bf08a");
@@ -186,7 +203,7 @@ addEventListener("hashchange", route);
 function buildCabinets(){
   const wrap = $("#cabinets"), previews = [];
   for(const [gid,g] of Object.entries(GAMES)){
-    const b = document.createElement("button"); b.className = "cab"; b.type = "button"; b.style.setProperty("--c", g.color);
+    const b = document.createElement("button"); b.className = "cab"; b.type = "button"; b.style.setProperty("--c", g.color); b.style.setProperty("--nc", g.color.replace("var(--","var(--neon-"));
     b.innerHTML = `<canvas width="640" height="480" aria-hidden="true"></canvas><div class="info"><span class="nm">${g.name}</span><span class="ds">${g.desc}</span><span class="best" data-best="${gid}"></span></div>`;
     b.addEventListener("click", () => startRun(gid));
     wrap.appendChild(b);
@@ -271,7 +288,7 @@ function renderCabinetBests(){
     el.textContent = (b ? "Your best " + b : "No score yet") + (top && ctxSet.code ? " · Class #1 " + top.s : ""); });
 }
 function setContext(set){
-  ctxSet = set; $("#how-misses").textContent = set.misses;
+  ctxSet = set; $("#how-misses").textContent = set.misses; $("#how-play").textContent = set.playTime ? `Play for up to ${set.playTime} seconds` : "Play until you lose that life";
   if(unwatch){ unwatch(); unwatch = null; } board = [];
   if(set.code){
     $("#ctx-text").innerHTML = `Playing <b>${esc(set.title)}</b> · code <span class="code">${esc(set.code)}</span> · ${set.questions.length} questions`;
@@ -306,7 +323,7 @@ async function joinCode(code, announce){
   try {
     const c = await data.getClass(code);
     if(!c){ if(announce){ msg.className = "msg err"; msg.textContent = "No class uses the code " + code + ". Check the letters and try again."; } return false; }
-    setContext({ code, title:String(c.title || "Class set"), questions:Array.isArray(c.questions) && c.questions.length ? c.questions : SAMPLE, mode:c.mode || "auto", misses:+c.misses || 3 });
+    setContext({ code, title:String(c.title || "Class set"), questions:Array.isArray(c.questions) && c.questions.length ? c.questions : SAMPLE, mode:c.mode || "auto", misses:+c.misses || 3, playTime:c.playTime ?? 45 });
     store.set("aa-code", code);
     if(announce){ msg.className = "msg ok"; msg.textContent = "You're in, " + nick + "! Pick a game to start."; }
     return true;

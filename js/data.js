@@ -1,6 +1,7 @@
 // Data layer. Uses Firebase (Firestore + Auth) when js/firebase-config.js is filled in,
 // otherwise a DEMO store kept in this browser's localStorage so you can try everything first.
-import { firebaseConfig, TEACHER_EMAILS } from "./firebase-config.js";
+// Load the settings file fresh every time, so edits on GitHub show up right away instead of after the browser's 10-minute cache.
+const { firebaseConfig, TEACHER_EMAILS } = await import("./firebase-config.js?t=" + Date.now());
 import { SAMPLE, nameKey } from "./questions.js";
 
 const FB = "https://www.gstatic.com/firebasejs/10.12.2/";

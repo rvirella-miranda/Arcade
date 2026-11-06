@@ -200,3 +200,5 @@ table.data tbody tr.click:hover,table.data tbody tr.sel{background:rgba(63,224,2
 .detail-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 .given{color:var(--bad)}
 table.data td{vertical-align:top}
+.tbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+a.btn{text-decoration:none;display:inline-block}

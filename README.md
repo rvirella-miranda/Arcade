@@ -2,8 +2,9 @@
 
 Students answer your questions to earn lives in five arcade-style games (Maze Muncher, Ring Rush, Block Stack, Snake, Brick Breaker). Each class code has its own live leaderboard, and every run is saved so you can see each student's scores, accuracy, and the exact questions they missed.
 
-- `index.html` is the student arcade. Embed this page in Google Sites.
-- `teacher.html` is your dashboard. It's protected by Google sign-in, so open it in its own tab, not inside Google Sites.
+- `index.html` is the whole site: the student arcade, plus your dashboard behind the **Teacher** button at the top right. Embed this one page in Google Sites.
+- The dashboard is protected by Google sign-in. Students who click **Teacher** just see a sign-in screen.
+- `teacher.html` only forwards to the dashboard, so old bookmarks keep working.
 
 The site works right away in **demo mode**: data stays in your own browser, and there's a sample class `DEMO1` with demo students. Follow the steps below to connect Firebase so data is shared and saved.
 
@@ -40,7 +41,7 @@ These config values are meant to be public. Your data is protected by the rules 
 
 ## 4. Make a class and add it to Google Sites
 
-1. Open `https://YOUR-GITHUB-NAME.github.io/answer-arcade/teacher.html` in its own browser tab and click **Sign in with Google**.
+1. Open your arcade (on your Google Site or at `https://YOUR-GITHUB-NAME.github.io/answer-arcade/`), click **Teacher** at the top right, and click **Sign in with Google**. If sign-in won't open inside Google Sites, click **Open in a new tab** and sign in there.
 2. Go to **Class codes & questions**. Upload an Excel/CSV file or paste your questions, choose the settings, and click **Create class code**.
 3. In Google Sites, click **Insert → Embed → By URL** and paste `https://YOUR-GITHUB-NAME.github.io/answer-arcade/`. Choose **Whole page**, insert it, and drag the box taller (about 1100 px) so the games fit.
    - **Tip:** to skip typing the code, embed `https://YOUR-GITHUB-NAME.github.io/answer-arcade/?code=ABCDE` and use a separate page for each class.

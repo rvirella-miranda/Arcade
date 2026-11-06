@@ -164,7 +164,23 @@ document.querySelectorAll(".pb").forEach(b => { const k = b.dataset.k;
   b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up);
 });
 
-function showView(v){ for(const id of ["home","play"]) $("#view-"+id).hidden = id !== v; if(v === "home") scrollTo({ top:0 }); }
+function showView(v){ for(const id of ["home","play","teacher"]) $("#view-"+id).hidden = id !== v; $("#btn-teacher").hidden = v === "teacher"; if(v !== "play") scrollTo({ top:0 }); }
+
+/* ---------------- teacher view (same page, behind the Teacher button) ---------------- */
+let teacherLoaded = null;
+function route(){
+  if(location.hash === "#teacher"){
+    if(!$("#view-play").hidden){ A.token++; A.state = "idle"; hideOverlay(); }
+    showView("teacher");
+    if(!teacherLoaded) teacherLoaded = import("./teacher.js").catch(e => { teacherLoaded = null; console.error(e); });
+  } else if(!$("#view-teacher").hidden){
+    showView("home");
+    if(ctxSet.code) joinCode(ctxSet.code, false).then(() => { renderBoard(); renderCabinetBests(); }); // pick up edited questions
+  }
+}
+$("#btn-teacher").addEventListener("click", () => { location.hash = "teacher"; });
+$("#btn-back").addEventListener("click", () => { history.pushState("", document.title, location.pathname + location.search); route(); });
+addEventListener("hashchange", route);
 
 /* ---------------- cabinets (attract mode) ---------------- */
 function buildCabinets(){
@@ -302,7 +318,7 @@ async function joinCode(code, announce){
 }
 
 /* ---------------- boot ---------------- */
-buildCabinets(); setContext(PRACTICE);
+buildCabinets(); setContext(PRACTICE); route();
 if(data.mode === "demo"){ const n = $("#mode-note"); n.hidden = false; n.innerHTML = "<b>Demo mode.</b> Firebase isn't connected yet, so scores stay in this browser. Try class code <b>DEMO1</b>."; }
 data.init().catch(e => console.warn("Firebase sign-in failed", e)).then(async () => {
   const urlCode = new URLSearchParams(location.search).get("code");

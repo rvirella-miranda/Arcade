@@ -13,24 +13,30 @@ const gtag = g => `<span class="gtag" style="color:${GAMES[g] ? GAMES[g].color :
 let classes = [], runs = [], stats = null, selStudent = null, sort = { key:"name", dir:1 }, editing = null, draft = null;
 
 /* ---------------- auth ---------------- */
+// Inside Google Sites the page runs in a frame, where Google sign-in is often blocked. Offer the same page in its own tab.
+const inFrame = (() => { try { return window.top !== window.self; } catch { return true; } })();
+{ const a = $("#gate-newtab"); a.href = location.href.split("#")[0] + "#teacher"; a.hidden = !inFrame; }
 if(data.mode === "demo") $("#demo-note").hidden = false;
 $("#btn-reset-demo").addEventListener("click", async () => { data.resetDemo(); await loadClasses(); });
 $("#btn-signin").addEventListener("click", async () => {
   $("#gate-msg").className = "msg"; $("#gate-msg").textContent = "Opening Google sign-in…";
   try { await data.teacherSignIn(); $("#gate-msg").textContent = ""; }
-  catch(e){ $("#gate-msg").className = "msg err";
-    $("#gate-msg").textContent = e && e.code === "auth/unauthorized-domain" ? "This website isn't on Firebase's list of authorized domains yet. See step 4 of the README."
-      : e && e.code === "auth/popup-blocked" ? "Your browser blocked the sign-in window. Allow pop-ups for this site, or open this page in its own tab (not inside Google Sites)."
-      : "Sign-in didn't finish. Try again."; }
+  catch(e){ console.warn(e); const m = $("#gate-msg"); m.className = "msg err";
+    m.textContent = e && e.code === "auth/unauthorized-domain" ? "This website isn't on Firebase's list of authorized domains yet. Add it in Firebase under Authentication → Settings → Authorized domains."
+      : e && e.code === "auth/popup-closed-by-user" ? "The sign-in window was closed before you finished. Try again."
+      : inFrame ? "Sign-in can't finish inside Google Sites. Use “Open in a new tab” below."
+      : e && e.code === "auth/popup-blocked" ? "Your browser blocked the sign-in window. Allow pop-ups for this site and try again."
+      : "Sign-in didn't finish. Try again.";
+    if(inFrame) $("#gate-newtab").hidden = false; }
 });
 $("#btn-signout").addEventListener("click", () => data.teacherSignOut());
 data.onTeacher(async u => {
   $("#btn-signout").hidden = !u || u.demo;
   $("#who").textContent = u ? (u.demo ? "Demo teacher" : u.email) : "";
-  if(!u){ $("#gate").hidden = false; $("#app").hidden = true; return; }
-  if(!u.isTeacher){ $("#gate").hidden = false; $("#app").hidden = true; $("#gate-msg").className = "msg err";
+  if(!u){ $("#gate").hidden = false; $("#t-app").hidden = true; return; }
+  if(!u.isTeacher){ $("#gate").hidden = false; $("#t-app").hidden = true; $("#gate-msg").className = "msg err";
     $("#gate-msg").textContent = u.email + " isn't on the teacher list. Add it to TEACHER_EMAILS in js/firebase-config.js and to firestore.rules."; return; }
-  $("#gate").hidden = true; $("#app").hidden = false;
+  $("#gate").hidden = true; $("#t-app").hidden = false;
   await loadClasses();
 }).catch(e => { $("#gate").hidden = false; $("#gate-msg").className = "msg err"; $("#gate-msg").textContent = "Firebase couldn't start. Check js/firebase-config.js."; console.error(e); });
 

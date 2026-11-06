@@ -57,6 +57,7 @@ One question per row. Column A is the question, column B is the right answer, an
 | Capital of Canada | Ottawa | | | |
 | First U.S. president | George Washington;Washington | | | |
 
+- A run ends when every question in the class set has been asked once, or when the student reaches the miss limit. Each question is asked only once per run, so scores are fair to compare.
 - Each right answer earns **45 seconds** of play, or less if the student loses their life first. When time runs out, the next right answer picks the game up where it stopped. Change this per class with **Play time per right answer** (30, 45, 60 or 90 seconds, or until they lose the life).
 - Rows with wrong choices become multiple choice, and rows without them become typed answers. You can change this per class with **Answer style**.
 - For typed answers, separate other accepted answers with `;`. Capital letters and extra spaces are ignored.

@@ -102,7 +102,6 @@ input[type=text]:focus,select:focus,textarea:focus{border-color:var(--cyan);outl
 .stat{display:flex;flex-direction:column;line-height:1.1}
 .stat small{font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:700}
 .stat b{font-family:var(--display);font-size:1.15rem}
-#hud-time.low{color:var(--bad)}
 .pips{display:flex;gap:4px;margin-top:3px}
 .pip{width:12px;height:12px;border-radius:3px;background:var(--line)}
 .pip.used{background:var(--bad)}

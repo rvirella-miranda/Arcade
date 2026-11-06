@@ -84,7 +84,7 @@ function renderClassList(){
 }
 function startEdit(c){
   editing = c.code; setDraft(c.questions.map(q => ({ ...q, wrong:[...(q.wrong || [])] })), "class " + c.code);
-  $("#t-title").value = c.title || ""; $("#t-mode").value = c.mode || "auto"; $("#t-misses").value = String(c.misses || 3); $("#t-time").value = String(c.playTime ?? 45);
+  $("#t-title").value = c.title || ""; $("#t-mode").value = c.mode || "auto"; $("#t-misses").value = String(c.misses || 3);
   $("#t-step2").textContent = "2 · Update class " + c.code; $("#t-create").textContent = "Save changes"; $("#t-cancel-edit").hidden = false;
   $("#t-create-msg").className = "msg"; $("#t-create-msg").textContent = "Saving keeps the same code and all student progress. Load a new file or paste to replace the questions.";
   $("#t-newcode").hidden = true; $("#t-title").focus();
@@ -117,7 +117,7 @@ $("#t-sample").addEventListener("click", () => { setDraft(SAMPLE.map(q => ({ ...
 $("#t-create").addEventListener("click", async () => {
   const m = $("#t-create-msg"); m.className = "msg";
   if(!draft){ m.className = "msg err"; m.textContent = "Add questions first: choose a file, paste them, or load the sample set."; return; }
-  const settings = { title:$("#t-title").value.trim().slice(0,60) || "Class set", mode:$("#t-mode").value, misses:+$("#t-misses").value, playTime:+$("#t-time").value, questions:draft };
+  const settings = { title:$("#t-title").value.trim().slice(0,60) || "Class set", mode:$("#t-mode").value, misses:+$("#t-misses").value, questions:draft };
   const btn = $("#t-create"); btn.disabled = true; m.textContent = "Saving…";
   try {
     const code = editing ? await data.saveClass(editing, settings) : await data.createClass(settings);

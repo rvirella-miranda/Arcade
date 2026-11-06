@@ -41,7 +41,7 @@
       <ol class="how">
         <li><span class="n">1</span><span><b>Pick a game</b> below.</span></li>
         <li><span class="n">2</span><span><b>Answer a question.</b> Get it right and you earn one life.</span></li>
-        <li><span class="n">3</span><span><b>Play until you lose that life</b>, then answer the next question to keep going. Your score keeps adding up.</span></li>
+        <li><span class="n">3</span><span><b id="how-play">Play for up to 45 seconds</b>, or until you lose that life. Then answer the next question to keep going. Your score keeps adding up.</span></li>
         <li><span class="n">4</span><span>Your run ends after <b id="how-misses">3</b> wrong answers. Every run is saved for your teacher, and your best score goes on the class board.</span></li>
       </ol>
     </div>
@@ -68,6 +68,7 @@
       <div class="stats">
         <div class="stat"><small>Score</small><b id="hud-score">0</b></div>
         <div class="stat"><small>Best</small><b id="hud-best">0</b></div>
+        <div class="stat"><small>Time</small><b id="hud-time">–</b></div>
         <div class="stat"><small>Answered</small><b id="hud-right">0</b></div>
         <div class="stat"><small>Misses</small><div class="pips" id="hud-pips"></div></div>
       </div>
@@ -191,6 +192,8 @@ First U.S. president| George Washington;Washington</div>
               </select></div>
             <div class="field"><label for="t-misses">Misses per run</label>
               <select id="t-misses"><option>2</option><option selected>3</option><option>4</option><option>5</option></select></div>
+            <div class="field"><label for="t-time">Play time per right answer</label>
+              <select id="t-time"><option value="30">30 seconds</option><option value="45" selected>45 seconds</option><option value="60">60 seconds</option><option value="90">90 seconds</option><option value="0">Until they lose the life</option></select></div>
           </div>
           <div class="row">
             <button class="btn" id="t-create" type="button">Create class code</button>

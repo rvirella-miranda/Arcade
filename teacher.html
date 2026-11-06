@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Answer Arcade · Teacher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="logo">ANSWER ARCADE</div>
+      <p class="tag">Teacher dashboard</p>
+    </div>
+    <div class="row" style="align-items:center">
+      <span id="who" class="who"></span>
+      <button class="btn ghost small" id="btn-signout" type="button" hidden>Sign out</button>
+    </div>
+  </header>
+
+  <div id="demo-note" class="callout" hidden><b>Demo mode.</b> Firebase isn't connected yet, so this dashboard shows sample students (marked “Demo”) and saves only in this browser. Follow the README to connect your own Firebase project. <button class="btn ghost small" id="btn-reset-demo" type="button">Reset demo data</button></div>
+
+  <section id="gate" class="card stack" hidden>
+    <h2>Sign in to see your classes</h2>
+    <p style="color:var(--muted)">Use the school Google account listed in <code>js/firebase-config.js</code> and <code>firestore.rules</code>.</p>
+    <div><button class="btn" id="btn-signin" type="button">Sign in with Google</button></div>
+    <p id="gate-msg" class="msg"></p>
+  </section>
+
+  <section id="app" class="stack" hidden style="gap:20px">
+    <div class="tabs" role="tablist" style="align-self:flex-start">
+      <button class="tab" id="tab-progress" role="tab" aria-selected="true" type="button">Student progress</button>
+      <button class="tab" id="tab-classes" role="tab" aria-selected="false" type="button">Class codes &amp; questions</button>
+    </div>
+
+    <!-- PROGRESS -->
+    <div id="view-progress" class="stack" style="gap:20px">
+      <div class="card toolbar">
+        <div class="field"><label for="p-class">Class</label><select id="p-class"></select></div>
+        <div class="row" style="gap:8px">
+          <button class="btn ghost small" id="p-refresh" type="button">Refresh</button>
+          <button class="btn alt small" id="p-export" type="button">Download CSV</button>
+          <button class="btn ghost small" id="p-clear-board" type="button">Reset leaderboard</button>
+          <button class="btn ghost small" id="p-clear-runs" type="button">Clear progress</button>
+        </div>
+        <p id="p-msg" class="msg" style="flex-basis:100%"></p>
+      </div>
+
+      <div class="tiles" id="p-tiles"></div>
+
+      <div class="card">
+        <div class="board-head"><h2>Students</h2><span class="note" style="margin:0">Select a student to see the questions they missed.</span></div>
+        <div class="tablewrap"><table class="data" id="p-students"></table></div>
+      </div>
+
+      <div class="card" id="p-detail" hidden></div>
+
+      <div class="card">
+        <div class="board-head"><h2>Questions to reteach</h2><span class="note" style="margin:0">Lowest percent correct first.</span></div>
+        <div class="tablewrap"><table class="data" id="p-questions"></table></div>
+      </div>
+
+      <div class="card">
+        <div class="board-head"><h2>Best scores by game</h2></div>
+        <div class="bests" id="p-bests"></div>
+      </div>
+    </div>
+
+    <!-- CLASSES -->
+    <div id="view-classes" hidden>
+      <div class="steps">
+        <div class="card stack">
+          <h2>1 · Add your questions</h2>
+          <div class="drop" id="drop">
+            <span>Drop a file here, or</span>
+            <label class="btn alt small" for="t-file" style="display:inline-block">Choose file</label>
+            <input type="file" id="t-file" accept=".csv,.tsv,.txt,.xlsx,.xls" hidden>
+            <span style="font-size:.8rem">Excel (.xlsx), CSV, or text</span>
+          </div>
+          <div class="field">
+            <label for="t-paste">Or paste questions</label>
+            <textarea id="t-paste" placeholder="What is 3/4 as a decimal? | 0.75 | 0.34 | 0.43 | 7.5&#10;Capital of Canada | Ottawa"></textarea>
+          </div>
+          <div class="row"><button class="btn ghost small" id="t-parse" type="button">Read pasted text</button><button class="btn ghost small" id="t-sample" type="button">Load sample set</button></div>
+          <details>
+            <summary style="cursor:pointer;color:var(--muted)">How to format your file</summary>
+            <div class="stack" style="margin-top:10px;gap:8px">
+              <p style="font-size:.92rem;color:var(--muted)">One question per row. Column A is the question, column B is the right answer. Columns C, D, E are optional wrong choices. Rows with wrong choices become multiple choice; rows without them become typed answers.</p>
+              <div class="fmt">Question            | Answer     | Wrong 1 | Wrong 2 | Wrong 3
+Solve 2x + 5 = 17   | 6          | 11      | 8.5     | 12
+Capital of Canada   | Ottawa
+First U.S. president| George Washington;Washington</div>
+              <p style="font-size:.92rem;color:var(--muted)">For typed answers, separate other accepted answers with a semicolon. Capital letters and extra spaces don't matter. From Word or Google Docs, paste lines like <b>Q: …</b> and <b>A: …</b>.</p>
+            </div>
+          </details>
+          <p id="t-parse-msg" class="msg"></p>
+          <div id="t-preview"></div>
+        </div>
+
+        <div class="card stack">
+          <h2 id="t-step2">2 · Make a class code</h2>
+          <div class="field"><label for="t-title">Set name</label><input type="text" id="t-title" maxlength="60" placeholder="e.g. Unit 3 Review – 2nd period"></div>
+          <div class="row">
+            <div class="field"><label for="t-mode">Answer style</label>
+              <select id="t-mode">
+                <option value="auto">Both: choices when listed, typed otherwise</option>
+                <option value="mc">Always multiple choice</option>
+                <option value="typed">Always typed</option>
+              </select></div>
+            <div class="field"><label for="t-misses">Misses per run</label>
+              <select id="t-misses"><option>2</option><option selected>3</option><option>4</option><option>5</option></select></div>
+          </div>
+          <div class="row">
+            <button class="btn" id="t-create" type="button">Create class code</button>
+            <button class="btn ghost" id="t-cancel-edit" type="button" hidden>Cancel editing</button>
+          </div>
+          <p id="t-create-msg" class="msg"></p>
+          <div id="t-newcode" hidden class="codebox">
+            <span class="c" id="t-code-val">—</span>
+            <div class="stack" style="gap:6px">
+              <span style="color:var(--muted);font-size:.9rem">Students type this code on the arcade page.</span>
+              <button class="btn alt small" id="t-copy" type="button">Copy code</button>
+            </div>
+          </div>
+          <h3 style="margin-top:8px">Your class codes</h3>
+          <ul class="classes" id="t-classes"><li class="m">Loading…</li></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+<script type="module" src="js/teacher.js"></script>
+</body>
+</html>

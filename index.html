@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Answer Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="logo">ANSWER ARCADE</div>
+      <p class="tag">Answer right, earn a life. Beat your class's high scores.</p>
+    </div>
+    <div class="mode-note" id="mode-note" hidden></div>
+  </header>
+
+  <!-- HOME -->
+  <section id="view-home" class="stack" style="gap:24px">
+    <div class="card join-grid">
+      <div class="stack">
+        <h2>Join your class</h2>
+        <form id="join-form" class="row" autocomplete="off">
+          <div class="field"><label for="join-code">Class code</label><input type="text" id="join-code" maxlength="6" placeholder="ABC12"></div>
+          <div class="field"><label for="join-nick">Your nickname</label><input type="text" id="join-nick" maxlength="16" placeholder="e.g. Jordan R."></div>
+          <button class="btn" type="submit" id="join-btn">Join</button>
+        </form>
+        <p id="join-msg" class="msg"></p>
+        <div id="ctx-banner" class="banner">
+          <span id="ctx-text">Practice mode with sample 6th–8th grade questions.</span>
+          <button class="btn ghost small" id="ctx-leave" type="button" hidden>Switch to practice</button>
+        </div>
+      </div>
+      <ol class="how">
+        <li><span class="n">1</span><span><b>Pick a game</b> below.</span></li>
+        <li><span class="n">2</span><span><b>Answer a question.</b> Get it right and you earn one life.</span></li>
+        <li><span class="n">3</span><span><b>Play until you lose that life</b>, then answer the next question to keep going. Your score keeps adding up.</span></li>
+        <li><span class="n">4</span><span>Your run ends after <b id="how-misses">3</b> wrong answers. Every run is saved for your teacher, and your best score goes on the class board.</span></li>
+      </ol>
+    </div>
+
+    <div class="stack">
+      <h2>Pick a game</h2>
+      <div id="cabinets" class="cabinets"></div>
+    </div>
+
+    <div class="card">
+      <div class="board-head">
+        <h2 id="board-title">Top scores</h2>
+        <div class="chips" id="board-chips"></div>
+      </div>
+      <ol class="ranks" id="board-list"></ol>
+      <p class="note" id="board-note"></p>
+    </div>
+  </section>
+
+  <!-- PLAY -->
+  <section id="view-play" class="stack" hidden style="gap:14px">
+    <div class="hud">
+      <div class="g" id="hud-game">Game</div>
+      <div class="stats">
+        <div class="stat"><small>Score</small><b id="hud-score">0</b></div>
+        <div class="stat"><small>Best</small><b id="hud-best">0</b></div>
+        <div class="stat"><small>Answered</small><b id="hud-right">0</b></div>
+        <div class="stat"><small>Misses</small><div class="pips" id="hud-pips"></div></div>
+      </div>
+      <div class="acts">
+        <button class="btn ghost small" id="btn-pause" type="button">Pause</button>
+        <button class="btn ghost small" id="btn-quit" type="button">End run</button>
+      </div>
+    </div>
+    <div class="stage" id="stage">
+      <canvas id="cv" width="640" height="480"></canvas>
+      <div class="overlay" id="overlay" hidden></div>
+    </div>
+    <div class="pad" id="pad">
+      <div class="dpad">
+        <span></span><button class="pb" data-k="up" type="button" aria-label="Up">▲</button><span></span>
+        <button class="pb" data-k="left" type="button" aria-label="Left">◀</button><button class="pb" data-k="down" type="button" aria-label="Down">▼</button><button class="pb" data-k="right" type="button" aria-label="Right">▶</button>
+      </div>
+      <button class="pb a" data-k="action" type="button" aria-label="Action">GO</button>
+    </div>
+    <p class="hint" id="hint"></p>
+  </section>
+
+    <footer class="foot"><a href="teacher.html" target="_blank" rel="noopener">Teacher dashboard</a></footer>
+</div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

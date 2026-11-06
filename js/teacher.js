@@ -62,17 +62,20 @@ async function loadClasses(){
 }
 function renderClassList(){
   const ul = $("#t-classes"); ul.innerHTML = "";
-  if(!classes.length){ ul.innerHTML = '<li class="m">No class codes yet. Add questions on the left, then create a code.</li>'; return; }
+  if(!classes.length){ ul.innerHTML = '<li class="m">No question sets yet. Add questions on the left, then save the set.</li>'; return; }
   for(const c of classes){
     const li = document.createElement("li");
     li.innerHTML = `<span class="c"></span><span class="t"></span><span class="m"></span><span class="row" style="gap:6px">
       <button class="btn alt small" type="button" data-a="progress">Progress</button>
       <button class="btn ghost small" type="button" data-a="edit">Edit questions</button>
-      <button class="btn ghost small" type="button" data-a="del">Delete</button></span>`;
+      <button class="btn ghost small" type="button" data-a="del">Delete</button></span>
+      <label class="vis"><input type="checkbox" data-a="vis"> Students can see this set</label>`;
     li.querySelector(".c").textContent = c.code; li.querySelector(".t").textContent = c.title || "Class set";
     li.querySelector(".m").textContent = (c.count || (c.questions || []).length) + " questions" + (c.createdAt ? " · " + new Date(c.createdAt).toLocaleDateString() : "");
     li.querySelector('[data-a="progress"]').addEventListener("click", () => { $("#p-class").value = c.code; tab("progress"); loadRuns(); });
     li.querySelector('[data-a="edit"]').addEventListener("click", () => startEdit(c));
+    const vis = li.querySelector('[data-a="vis"]'); vis.checked = c.listed !== false;
+    vis.addEventListener("change", async () => { vis.disabled = true; try { await data.setListed(c.code, vis.checked); c.listed = vis.checked; } catch(e){ console.error(e); vis.checked = !vis.checked; } vis.disabled = false; });
     const del = li.querySelector('[data-a="del"]');
     del.addEventListener("click", async () => {
       if(!del.dataset.confirm){ del.dataset.confirm = "1"; del.textContent = "Confirm delete"; setTimeout(() => { if(del.isConnected){ delete del.dataset.confirm; del.textContent = "Delete"; } }, 4000); return; }
@@ -89,7 +92,7 @@ function startEdit(c){
   $("#t-create-msg").className = "msg"; $("#t-create-msg").textContent = "Saving keeps the same code and all student progress. Load a new file or paste to replace the questions.";
   $("#t-newcode").hidden = true; $("#t-title").focus();
 }
-function stopEdit(){ editing = null; $("#t-step2").textContent = "2 · Make a class code"; $("#t-create").textContent = "Create class code"; $("#t-cancel-edit").hidden = true; $("#t-create-msg").textContent = ""; }
+function stopEdit(){ editing = null; $("#t-step2").textContent = "2 · Save the question set"; $("#t-create").textContent = "Save question set"; $("#t-cancel-edit").hidden = true; $("#t-create-msg").textContent = ""; }
 $("#t-cancel-edit").addEventListener("click", stopEdit);
 
 function setDraft(qs, source){
@@ -122,7 +125,7 @@ $("#t-create").addEventListener("click", async () => {
   try {
     const code = editing ? await data.saveClass(editing, settings) : await data.createClass(settings);
     $("#t-code-val").textContent = code; $("#t-newcode").hidden = false;
-    m.className = "msg ok"; m.textContent = editing ? "Saved. Students see the new questions on their next run." : "Class code ready. Share it with your students.";
+    m.className = "msg ok"; m.textContent = editing ? "Saved. Students see the new questions on their next run." : "Saved. Students can pick it from the question set list now.";
     if(editing) stopEdit(), m.className = "msg ok", m.textContent = "Saved. Students see the new questions on their next run.";
     $("#p-class").value = code; await loadClasses();
   } catch(e){ console.error(e); m.className = "msg err"; m.textContent = "The class couldn't be saved. Check your connection, and that your email is in firestore.rules."; }

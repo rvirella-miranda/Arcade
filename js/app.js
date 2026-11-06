@@ -196,6 +196,7 @@ function route(){
     if(!teacherLoaded) teacherLoaded = import("./teacher.js").catch(e => { teacherLoaded = null; console.error(e); });
   } else if(!$("#view-teacher").hidden){
     showView("home");
+    loadSets(); // pick up new or hidden sets
     if(ctxSet.code) joinCode(ctxSet.code, false).then(() => { renderBoard(); renderCabinetBests(); }); // pick up edited questions
   }
 }
@@ -253,7 +254,7 @@ async function recordRun(gid, score){
   }
   const parts = [];
   try { await data.submitRun({ code:ctxSet.code, name:nick, game:gid, score, right:A.right, wrong:A.misses, answers:A.answers }); parts.push("Saved for your teacher."); }
-  catch(e){ console.warn(e); parts.push("This run couldn't be saved. Check your internet connection."); }
+  catch(e){ console.warn(e); parts.push("This run couldn't be saved. " + data.explain(e)); }
   if(score > myBoardBest(gid)){
     try { if(await data.postBest(ctxSet.code, gid, nick, score)) parts.push("Posted to the class board."); }
     catch(e){ console.warn(e); }
@@ -293,10 +294,10 @@ function renderCabinetBests(){
     el.textContent = (b ? "Your best " + b : "No score yet") + (top && ctxSet.code ? " · Class #1 " + top.s : ""); });
 }
 function setContext(set){
-  ctxSet = set; $("#how-misses").textContent = set.misses; $("#how-play").textContent = set.playTime ? `Play for up to ${set.playTime} seconds` : "Play until you lose that life";
+  ctxSet = set; $("#how-misses").textContent = set.misses; $("#how-play").textContent = set.playTime ? `Play for up to ${set.playTime} seconds` : "Play until you lose that life"; $("#how-play2").textContent = set.playTime ? ", or until you lose that life." : ".";
   if(unwatch){ unwatch(); unwatch = null; } board = [];
   if(set.code){
-    $("#ctx-text").innerHTML = `Playing <b>${esc(set.title)}</b> · code <span class="code">${esc(set.code)}</span> · ${set.questions.length} questions`;
+    $("#ctx-text").innerHTML = `Playing <b>${esc(set.title)}</b> · ${set.questions.length} questions`;
     $("#ctx-leave").hidden = false;
     boardState = "loading";
     const timer = setTimeout(() => { if(boardState === "loading"){ boardState = "error"; renderBoard(); } }, 10000);
@@ -308,44 +309,54 @@ function setContext(set){
   }
   renderBoard(); renderCabinetBests();
 }
-$("#ctx-leave").addEventListener("click", () => { store.set("aa-code", null); setContext(PRACTICE); $("#join-msg").textContent = ""; });
+$("#ctx-leave").addEventListener("click", () => { store.set("aa-code", null); setContext(PRACTICE); $("#join-set").value = ""; $("#join-msg").textContent = ""; });
 
-/* ---------------- join ---------------- */
+/* ---------------- join: type a name, pick a question set ---------------- */
 $("#join-nick").value = nick;
-$("#join-code").addEventListener("input", e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); });
+let sets = [];
+async function loadSets(selectCode){
+  const sel = $("#join-set");
+  try { sets = await data.listSets(); }
+  catch(e){ console.warn(e); sel.innerHTML = `<option value="">Question sets can't load right now</option>`; $("#join-msg").className = "msg err"; $("#join-msg").textContent = data.explain(e); return; }
+  const want = selectCode || ctxSet.code || store.get("aa-code") || "";
+  if(want && !sets.some(x => x.code === want)){ try { const c = await data.getClass(want); if(c) sets.unshift({ code:want, title:c.title || "Question set", count:(c.questions||[]).length }); } catch {} }
+  sel.innerHTML = `<option value="">${sets.length ? "Choose your question set" : "No question sets yet. Ask your teacher."}</option>` +
+    sets.map(x => `<option value="${esc(x.code)}">${esc(x.title)} (${x.count} questions)</option>`).join("");
+  if(want && sets.some(x => x.code === want)) sel.value = want;
+}
 $("#join-form").addEventListener("submit", async e => {
   e.preventDefault();
-  const code = $("#join-code").value.trim().toUpperCase(), n = $("#join-nick").value.trim().replace(/\s+/g, " ").slice(0,16), msg = $("#join-msg");
+  const code = $("#join-set").value, n = $("#join-nick").value.trim().replace(/\s+/g, " ").slice(0,16), msg = $("#join-msg");
   msg.className = "msg";
-  if(!code){ msg.className = "msg err"; msg.textContent = "Type the class code your teacher gave you."; return; }
-  if(!n){ msg.className = "msg err"; msg.textContent = "Add your first name and last initial so your teacher knows it's you."; $("#join-nick").focus(); return; }
+  if(!n){ msg.className = "msg err"; msg.textContent = "Type your first name and last initial so your teacher knows it's you."; $("#join-nick").focus(); return; }
+  if(!code){ msg.className = "msg err"; msg.textContent = "Pick your question set from the list."; $("#join-set").focus(); return; }
   nick = n; store.set("aa-nick", nick);
-  msg.textContent = "Looking up " + code + "…";
+  msg.textContent = "Loading questions…";
   await joinCode(code, true);
 });
 async function joinCode(code, announce){
   const msg = $("#join-msg");
   try {
     const c = await data.getClass(code);
-    if(!c){ if(announce){ msg.className = "msg err"; msg.textContent = "No class uses the code " + code + ". Check the letters and try again."; } return false; }
-    setContext({ code, title:String(c.title || "Class set"), questions:Array.isArray(c.questions) && c.questions.length ? c.questions : SAMPLE, mode:c.mode || "auto", misses:+c.misses || 3, playTime:c.playTime ?? 45 });
-    store.set("aa-code", code);
-    if(announce){ msg.className = "msg ok"; msg.textContent = "You're in, " + nick + "! Pick a game to start."; }
+    if(!c){ if(announce){ msg.className = "msg err"; msg.textContent = "That question set was removed. Pick another one."; } loadSets(); return false; }
+    setContext({ code, title:String(c.title || "Question set"), questions:Array.isArray(c.questions) && c.questions.length ? c.questions : SAMPLE, mode:c.mode || "auto", misses:+c.misses || 3, playTime:c.playTime ?? 45 });
+    store.set("aa-code", code); $("#join-set").value = code;
+    if(announce){ msg.className = "msg ok"; msg.textContent = "Ready, " + nick + "! Pick a game to start."; }
     return true;
   } catch(e){
     console.warn(e);
-    if(announce){ msg.className = "msg err"; msg.textContent = "The class list can't be reached right now. Check your internet connection and try again."; }
+    if(announce){ msg.className = "msg err"; msg.textContent = data.explain(e); }
     return false;
   }
 }
 
 /* ---------------- boot ---------------- */
 buildCabinets(); setContext(PRACTICE); route();
-if(data.mode === "demo"){ const n = $("#mode-note"); n.hidden = false; n.innerHTML = "<b>Demo mode.</b> Firebase isn't connected yet, so scores stay in this browser. Try class code <b>DEMO1</b>."; }
-data.init().catch(e => console.warn("Firebase sign-in failed", e)).then(async () => {
-  const urlCode = new URLSearchParams(location.search).get("code");
-  if(urlCode) store.set("aa-code", urlCode.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,6));
+if(data.mode === "demo"){ const n = $("#mode-note"); n.hidden = false; n.innerHTML = "<b>Demo mode.</b> Firebase isn't connected yet, so scores stay in this browser. Try the sample question set."; }
+data.init().catch(e => console.warn("Firebase didn't start", e)).then(async () => {
+  const urlCode = (new URLSearchParams(location.search).get("code") || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,6);
+  if(urlCode) store.set("aa-code", urlCode);
+  await loadSets(urlCode);
   const saved = store.get("aa-code");
-  if(saved) $("#join-code").value = saved;
-  if(saved && nick && await joinCode(saved, false)){ $("#join-code").value = saved; $("#join-msg").className = "msg ok"; $("#join-msg").textContent = "Welcome back, " + nick + "."; }
+  if(saved && nick && await joinCode(saved, false)){ $("#join-msg").className = "msg ok"; $("#join-msg").textContent = "Welcome back, " + nick + ". Not you? Change the name and press Start."; }
 });

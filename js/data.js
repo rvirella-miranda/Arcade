@@ -26,14 +26,7 @@ async function fbInit(){
   fb = { app, A, F, auth: A.getAuth(app), db: F.getFirestore(app) };
   return fb;
 }
-// Students: sign in anonymously so security rules can require a signed-in user.
-async function fbStudentReady(){
-  const { auth, A } = await fbInit();
-  if(auth.currentUser) return auth.currentUser;
-  await new Promise(res => { const off = A.onAuthStateChanged(auth, u => { off(); res(u); }); });
-  if(!auth.currentUser) await A.signInAnonymously(auth);
-  return auth.currentUser;
-}
+// Students never sign in. They only type a name; the security rules check what they save instead.
 
 /* ---------------- Demo backend (localStorage) ---------------- */
 const DKEY = "aa-demo-db-v1";
@@ -71,7 +64,7 @@ function seedDemo(){
 /* ---------------- Public API ---------------- */
 export async function init(){
   if(!configured) return mode;
-  if(!ready) ready = fbStudentReady().catch(e => { ready = null; throw e; });
+  if(!ready) ready = fbInit().catch(e => { ready = null; throw e; });
   await ready; return mode;
 }
 
@@ -90,10 +83,10 @@ export async function listClasses(){
 }
 export async function saveClass(code, data){
   const body = { title:data.title, questions:data.questions, mode:data.mode, misses:data.misses, playTime:data.playTime ?? 45, count:data.questions.length };
-  if(!configured){ const d = dload(); const old = d.classes[code]; d.classes[code] = { ...body, createdAt: old ? old.createdAt : Date.now() }; dsave(d); return code; }
+  if(!configured){ const d = dload(); const old = d.classes[code]; d.classes[code] = { ...body, listed: old ? old.listed !== false : true, createdAt: old ? old.createdAt : Date.now() }; dsave(d); return code; }
   const { db, F } = await fbInit();
   const ref = F.doc(db, "classes", code); const old = await F.getDoc(ref);
-  await F.setDoc(ref, { ...body, createdAt: old.exists() ? old.data().createdAt : F.serverTimestamp() });
+  await F.setDoc(ref, { ...body, listed: old.exists() ? old.data().listed !== false : true, createdAt: old.exists() ? old.data().createdAt : F.serverTimestamp() });
   return code;
 }
 export async function createClass(data){
@@ -103,6 +96,25 @@ export async function createClass(data){
 async function getClassAsTeacher(code){
   if(!configured) return dload().classes[code] || null;
   const { db, F } = await fbInit(); const s = await F.getDoc(F.doc(db, "classes", code)); return s.exists() ? s.data() : null;
+}
+// Question sets students can pick from (title + code only; hidden sets are left out).
+export async function listSets(){
+  let all;
+  if(!configured) all = Object.entries(dload().classes).map(([code,v]) => ({ code, ...v }));
+  else { await init(); const { db, F } = fb; const s = await F.getDocs(F.collection(db, "classes")); all = s.docs.map(d => ({ code:d.id, ...d.data(), createdAt: ms(d.data().createdAt) })); }
+  return all.filter(c => c.listed !== false).map(c => ({ code:c.code, title:c.title || "Question set", count:c.count || (c.questions || []).length, createdAt:c.createdAt || 0 }))
+    .sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+}
+export async function setListed(code, listed){
+  if(!configured){ const d = dload(); if(d.classes[code]) d.classes[code].listed = !!listed; dsave(d); return; }
+  const { db, F } = await fbInit(); await F.updateDoc(F.doc(db, "classes", code), { listed: !!listed });
+}
+// Plain-language reason for a failed save or load, for students and teacher.
+export function explain(e){
+  const c = (e && e.code) || "";
+  if(c.includes("permission-denied")) return "Firebase blocked this. The security rules need to be updated: paste the newest firestore.rules into Firebase and click Publish.";
+  if(c.includes("unavailable") || c.includes("network")) return "The internet connection to Firebase dropped, or the school network is blocking firestore.googleapis.com.";
+  return "Something went wrong talking to Firebase" + (c ? " (" + c + ")" : "") + ".";
 }
 export async function deleteClass(code){
   if(!configured){ const d = dload(); delete d.classes[code]; dsave(d); return; }
@@ -115,8 +127,8 @@ export async function submitRun(run){
     score:Math.max(0, Math.floor(run.score)), right:run.right|0, wrong:run.wrong|0,
     answers:run.answers.slice(0,300).map(x => ({ q:String(x.q).slice(0,400), a:String(x.a).slice(0,200), ok:!!x.ok, given:String(x.given).slice(0,100) })) };
   if(!configured){ const d = dload(); d.runs.push({ ...body, t:Date.now() }); dsave(d); return; }
-  const user = await fbStudentReady(); const { db, F } = fb;
-  await F.addDoc(F.collection(db, "runs"), { ...body, uid:user.uid, endedAt:F.serverTimestamp() });
+  await init(); const { db, F } = fb;
+  await F.addDoc(F.collection(db, "runs"), { ...body, endedAt:F.serverTimestamp() });
 }
 
 export async function postBest(code, game, name, score){

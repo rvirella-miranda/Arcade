@@ -50,7 +50,7 @@ function renderPips(){ const p = $("#hud-pips"); p.innerHTML = ""; for(let i=0;i
 
 function startRun(gid){
   A.token++; A.gid = gid; A.game = GAMES[gid].make(api); A.game.reset();
-  Object.assign(A, { score:0, misses:0, right:0, paused:false, queue:[], answers:[], timeLeft:0, needLife:true }); showTime();
+  Object.assign(A, { score:0, misses:0, right:0, paused:false, queue:shuffle(ctxSet.questions.map((_,i)=>i)), curQ:null, answers:[], timeLeft:0, needLife:true }); showTime();
   A.best = getBest(gid);
   $("#hud-game").textContent = GAMES[gid].name; $("#hud-game").style.color = GAMES[gid].color;
   $("#hud-score").textContent = "0"; $("#hud-best").textContent = A.best; $("#hud-right").textContent = "0";
@@ -59,22 +59,24 @@ function startRun(gid){
   renderPips(); showView("play"); askQuestion();
   if(!raf){ last = performance.now(); raf = requestAnimationFrame(frame); }
 }
-function nextQ(){ const qs = ctxSet.questions; if(!A.queue.length) A.queue = shuffle(qs.map((_,i)=>i)); return qs[A.queue.pop()]; }
+// Each question is asked once per run. When they've all been asked, the run ends.
+function nextQ(){ return ctxSet.questions[A.queue.pop()]; }
 
-function askQuestion(){
+function askQuestion(repeat){
+  if(!repeat && !A.queue.length){ endRun(); return; }
   A.state = "question"; input.pressed.clear(); for(const k in input.held) input.held[k] = false;
-  const q = nextQ(), disp = displayAnswer(q.a);
+  const q = repeat && A.curQ ? A.curQ : nextQ(), disp = displayAnswer(q.a); A.curQ = q;
   let mc = ctxSet.mode === "mc" || (ctxSet.mode === "auto" && q.wrong && q.wrong.length > 0), choices = null;
   if(mc){
     let wrong = (q.wrong || []).slice(0,3);
     if(!wrong.length) wrong = shuffle([...new Set(ctxSet.questions.map(o => displayAnswer(o.a)).filter(a => a && normalize(a) !== normalize(disp)))]).slice(0,3);
     if(!wrong.length) mc = false; else choices = shuffle([disp, ...wrong]);
   }
-  const left = ctxSet.misses - A.misses, num = A.right + A.misses + 1;
+  const left = ctxSet.misses - A.misses, num = A.right + A.misses + 1, total = ctxSet.questions.length;
   const body = mc
     ? `<div class="choices">${choices.map((c,i)=>`<button class="choice" type="button" data-i="${i}"><span class="k">${i+1}</span><span>${esc(c)}</span></button>`).join("")}</div>`
     : `<form class="typed" id="typed-form" autocomplete="off"><input type="text" id="typed-in" placeholder="Type your answer" aria-label="Your answer" maxlength="100"><button class="btn" type="submit">Check</button></form>`;
-  showOverlay(`<div class="qcard"><div class="qlabel">QUESTION ${num} · ${left} MISS${left===1?"":"ES"} LEFT</div><div class="qtext">${esc(q.q)}</div>${body}<p class="msg" style="font-size:.85rem">${mc ? "Tap an answer or press 1–"+choices.length+"." : "Press Enter to check."}</p></div>`);
+  showOverlay(`<div class="qcard"><div class="qlabel">QUESTION ${num} OF ${total} · ${left} MISS${left===1?"":"ES"} LEFT</div><div class="qtext">${esc(q.q)}</div>${body}<p class="msg" style="font-size:.85rem">${mc ? "Tap an answer or press 1–"+choices.length+"." : "Press Enter to check."}</p></div>`);
   if(mc){
     A.mcKeys = choices;
     overlay.querySelectorAll(".choice").forEach(b => b.addEventListener("click", () => {
@@ -96,16 +98,17 @@ function resolve(ok, disp){
   A.state = "answered"; A.mcKeys = null; const tok = A.token;
   if(ok){
     A.right++; $("#hud-right").textContent = A.right;
-    showOverlay(`<div class="center"><div class="big good">CORRECT!</div><p style="color:var(--muted)">${ctxSet.playTime ? `You get ${ctxSet.playTime} seconds of play.` : "+1 life."} Get ready…</p></div>`);
+    const last = !A.queue.length;
+    showOverlay(`<div class="center"><div class="big good">CORRECT!</div><p style="color:var(--muted)">${ctxSet.playTime ? `You get ${ctxSet.playTime} seconds of play.` : "+1 life."}${last ? " That was the last question, so make this round count!" : ""} Get ready…</p></div>`);
     setTimeout(() => { if(tok !== A.token) return; hideOverlay(); if(document.activeElement) document.activeElement.blur();
       if(A.needLife) A.game.startLife(); // after time's up, the game picks up right where it stopped
       A.needLife = false; A.timeLeft = ctxSet.playTime || 0; showTime();
       A.state = "ready"; A.readyT = 1.1; }, 900);
   } else {
     A.misses++; renderPips();
-    const out = A.misses >= ctxSet.misses, left = ctxSet.misses - A.misses;
+    const out = A.misses >= ctxSet.misses || !A.queue.length, left = ctxSet.misses - A.misses;
     showOverlay(`<div class="qcard center"><div class="big bad">NOT QUITE</div><p>The answer is <b style="color:var(--yellow)">${esc(disp)}</b>.</p>
-      <p style="color:var(--muted)">${out ? "That was your last miss." : `${left} miss${left===1?"":"es"} left.`}</p>
+      <p style="color:var(--muted)">${A.misses >= ctxSet.misses ? "That was your last miss." : !A.queue.length ? "That was the last question." : `${left} miss${left===1?"":"es"} left.`}</p>
       <button class="btn" type="button" id="btn-next">${out ? "See my score" : "Next question"}</button></div>`);
     const b = $("#btn-next"); b.focus({ preventScroll:true });
     b.addEventListener("click", () => { if(tok !== A.token) return; out ? endRun() : askQuestion(); });
@@ -113,7 +116,8 @@ function resolve(ok, disp){
 }
 async function endRun(){
   A.state = "over"; const tok = A.token, gid = A.gid, score = A.score;
-  showOverlay(`<div class="qcard center"><div class="qlabel">RUN COMPLETE</div><div class="big">${score}</div>
+  const finished = !A.queue.length && A.misses < ctxSet.misses;
+  showOverlay(`<div class="qcard center"><div class="qlabel">${finished ? "ALL QUESTIONS DONE!" : "RUN COMPLETE"}</div><div class="big">${score}</div>
     <p style="color:var(--muted)">${A.right} right · ${A.misses} wrong</p><p id="save-status" style="color:var(--muted)">Saving…</p>
     <div class="btnrow"><button class="btn" type="button" id="btn-again">Play again</button><button class="btn ghost" type="button" id="btn-home">Pick another game</button></div></div>`);
   $("#btn-again").addEventListener("click", () => startRun(gid));
@@ -139,7 +143,7 @@ $("#btn-quit").addEventListener("click", () => {
   $("#q-no").addEventListener("click", () => {
     A.paused = false; $("#btn-pause").textContent = "Pause";
     if(prevState === "playing" || prevState === "ready"){ A.state = prevState; hideOverlay(); }
-    else askQuestion();
+    else askQuestion(true); // show the same unanswered question again
   });
 });
 
@@ -226,6 +230,7 @@ function buildCabinets(){
         if(p.gid === "stack"){ if(Math.random() < 0.05) ai.pressed.add(Math.random() < .5 ? "left" : "right"); if(Math.random() < 0.03) ai.pressed.add("up"); }
         if(p.gid === "snake" && Math.random() < 0.06) ai.pressed.add(pick());
         if(p.gid === "brick"){ ai.px = 320 + Math.sin(p.t*1.7)*200; ai.pressed.add("action"); }
+        if(p.gid === "hop"){ ai.held.right = Math.sin(p.t*0.7) > -0.3; ai.held.left = !ai.held.right; if(Math.random() < 0.03){ ai.pressed.add("up"); } ai.held.up = Math.random() < 0.8; }
         try { p.inst.update(dt, ai); } catch {}
       }
       p.inst.draw(p.pc);

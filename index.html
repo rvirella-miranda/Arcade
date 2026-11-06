@@ -6,15 +6,15 @@
 <title>Answer Arcade</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Lilita+One&family=Silkscreen:wght@400;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="logo">ANSWER ARCADE</div>
-      <p class="tag">Answer right, earn a life. Beat your class's high scores.</p>
+      <h1 class="logo">Answer Arcade</h1>
+      <p class="tag"><span class="blink">▶</span> Answer right · earn play time · beat the high score</p>
     </div>
     <div class="row" style="align-items:center;gap:10px">
       <div class="mode-note" id="mode-note" hidden></div>
@@ -41,7 +41,7 @@
       <ol class="how">
         <li><span class="n">1</span><span><b>Pick a game</b> below.</span></li>
         <li><span class="n">2</span><span><b>Answer a question.</b> Get it right and you earn one life.</span></li>
-        <li><span class="n">3</span><span><b>Play until you lose that life</b>, then answer the next question to keep going. Your score keeps adding up.</span></li>
+        <li><span class="n">3</span><span><b id="how-play">Play for up to 45 seconds</b>, or until you lose that life. Then answer the next question to keep going. Your score keeps adding up.</span></li>
         <li><span class="n">4</span><span>Your run ends after <b id="how-misses">3</b> wrong answers. Every run is saved for your teacher, and your best score goes on the class board.</span></li>
       </ol>
     </div>
@@ -63,11 +63,13 @@
 
   <!-- PLAY -->
   <section id="view-play" class="stack" hidden style="gap:14px">
+    <div class="cabinet">
     <div class="hud">
       <div class="g" id="hud-game">Game</div>
       <div class="stats">
         <div class="stat"><small>Score</small><b id="hud-score">0</b></div>
         <div class="stat"><small>Best</small><b id="hud-best">0</b></div>
+        <div class="stat"><small>Time</small><b id="hud-time">–</b></div>
         <div class="stat"><small>Answered</small><b id="hud-right">0</b></div>
         <div class="stat"><small>Misses</small><div class="pips" id="hud-pips"></div></div>
       </div>
@@ -86,6 +88,7 @@
         <button class="pb" data-k="left" type="button" aria-label="Left">◀</button><button class="pb" data-k="down" type="button" aria-label="Down">▼</button><button class="pb" data-k="right" type="button" aria-label="Right">▶</button>
       </div>
       <button class="pb a" data-k="action" type="button" aria-label="Action">GO</button>
+    </div>
     </div>
     <p class="hint" id="hint"></p>
   </section>
@@ -191,6 +194,8 @@ First U.S. president| George Washington;Washington</div>
               </select></div>
             <div class="field"><label for="t-misses">Misses per run</label>
               <select id="t-misses"><option>2</option><option selected>3</option><option>4</option><option>5</option></select></div>
+            <div class="field"><label for="t-time">Play time per right answer</label>
+              <select id="t-time"><option value="30">30 seconds</option><option value="45" selected>45 seconds</option><option value="60">60 seconds</option><option value="90">90 seconds</option><option value="0">Until they lose the life</option></select></div>
           </div>
           <div class="row">
             <button class="btn" id="t-create" type="button">Create class code</button>

@@ -241,3 +241,38 @@ table.data td{vertical-align:top}
 a.btn{text-decoration:none;display:inline-block}
 .classes .vis{flex-basis:100%;display:flex;gap:8px;align-items:center;font-size:.88rem;color:var(--muted);cursor:pointer}
 .classes .vis input{width:18px;height:18px;accent-color:var(--olive)}
+
+/* ---- question pictures: teacher list ---- */
+.qhead{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline;margin:6px 0 8px}
+.qhead span{color:var(--muted);font-size:.85rem}
+.qlist{list-style:none;margin:0;padding:0;border:1.5px solid var(--line);border-radius:12px;max-height:640px;overflow:auto;background:var(--field)}
+.qrow{display:grid;grid-template-columns:1.8em minmax(0,1fr) 150px;gap:12px;align-items:start;padding:12px;border-bottom:1.5px solid var(--line)}
+.qrow:last-child{border-bottom:0}
+.qn{font-family:var(--head);font-size:1.15rem;color:var(--olive)}
+.qbody{min-width:0}
+.qq{font-weight:700;overflow-wrap:anywhere}
+.qa{color:var(--muted);font-size:.85rem;margin-top:3px;overflow-wrap:anywhere}
+.picbox{border:2px dashed var(--olive);border-radius:10px;min-height:92px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px;text-align:center;cursor:pointer;background:rgba(107,122,46,.05);color:var(--muted);font-size:.78rem;line-height:1.35}
+.picbox b{display:block;color:var(--olive);font-size:.88rem;margin-bottom:2px}
+.picbox u{color:var(--rust)}
+.picbox.has{border:1.5px solid var(--line);background:#fff;cursor:default}
+.picbox img{max-width:100%;max-height:130px;border-radius:6px}
+.picbox:focus{outline:none;border-color:var(--rust);box-shadow:0 0 0 3px rgba(164,83,47,.25)}
+.picbox:focus .pichint b::after{content:" · ready to paste"}
+.picbox.over{border-color:var(--rust);background:rgba(164,83,47,.08)}
+.picacts{display:flex;gap:6px}
+.picacts .btn{padding:4px 8px;font-size:.78rem}
+@media (max-width:520px){.qrow{grid-template-columns:1.6em minmax(0,1fr)}.picbox{grid-column:2}}
+
+/* ---- question pictures: student card ---- */
+.qimg{background:#fff;border:0;border-radius:10px;padding:6px;align-self:center;max-width:100%;position:relative;cursor:zoom-in;display:block}
+.qimg img{display:block;max-width:100%;max-height:min(34vh,300px);width:auto;height:auto;border-radius:6px;margin:0 auto}
+.qimg .zoom{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.65);color:#fff;font-size:.7rem;padding:2px 7px;border-radius:6px;font-weight:700}
+.qimg.loading{color:#555;font-size:.85rem;padding:14px 18px;cursor:default}
+.lightbox{position:fixed;inset:0;z-index:50;background:rgba(10,8,26,.88);display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out}
+.lightbox img{max-width:100%;max-height:100%;background:#fff;border-radius:10px;padding:8px}
+.lightbox span{position:absolute;top:calc(12px + env(safe-area-inset-top, 0px));right:16px;color:#fff;font-weight:700;background:rgba(0,0,0,.5);padding:6px 12px;border-radius:8px}
+
+/* notes to study, under the question number */
+.qnotes{font-weight:700;font-size:.9rem;color:var(--cyan);margin-top:-6px;overflow-wrap:anywhere}
+.qbody .qnotes{margin-top:2px;font-size:.82rem}

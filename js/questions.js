@@ -55,10 +55,21 @@ export function parseDelimited(text, delim){
   if(f!==""||row.length){ row.push(f); rows.push(row); }
   return rows;
 }
+// Columns: A question, B answer, C–E wrong choices (optional), F notes to study (optional).
+// With a header row, a column titled "Notes" (or "Reference" / "Lesson") is used wherever it is.
 export function rowsToQuestions(rows){
   rows = rows.map(r=>r.map(c=>String(c??"").trim())).filter(r=>r.some(Boolean));
-  if(rows.length && /^(question|questions|prompt|q)$/i.test(rows[0][0])) rows.shift();
-  return rows.filter(r=>r[0]&&r[1]).map(r=>({q:r[0].slice(0,400), a:r[1].slice(0,200), wrong:r.slice(2).filter(Boolean).slice(0,4).map(s=>s.slice(0,200))}));
+  let notesCol = 5, wrongCols = [2,3,4];
+  if(rows.length && /^(question|questions|prompt|q)$/i.test(rows[0][0])){
+    const head = rows.shift().map(h => h.toLowerCase());
+    const n = head.findIndex(h => /^(notes?|reference|ref|lesson|study|see)\b/.test(h));
+    if(n >= 0){ notesCol = n; wrongCols = head.map((_,i) => i).filter(i => i >= 2 && i !== n).slice(0,4); }
+  }
+  return rows.filter(r=>r[0]&&r[1]).map(r=>{
+    const q = {q:r[0].slice(0,400), a:r[1].slice(0,200), wrong:wrongCols.map(i => r[i]).filter(Boolean).slice(0,4).map(s=>s.slice(0,200))};
+    if(r[notesCol]) q.notes = r[notesCol].slice(0,120);
+    return q;
+  });
 }
 export function parseText(text){
   text = text.replace(/^﻿/,"");
@@ -68,9 +79,10 @@ export function parseText(text){
       if((m=line.match(/^Q\s*\d*\s*[:.)]\s*(.*)$/i))){ if(cur&&cur.q&&cur.a) out.push(cur); cur={q:m[1],a:"",wrong:[]}; }
       else if(cur&&(m=line.match(/^A\s*\d*\s*[:.)]\s*(.*)$/i))) cur.a=m[1];
       else if(cur&&(m=line.match(/^(W|Wrong|X)\s*\d*\s*[:.)]\s*(.*)$/i))) cur.wrong.push(m[2]);
+      else if(cur&&(m=line.match(/^(N|Notes?|Ref|Reference)\s*[:.)]\s*(.*)$/i))) cur.notes=m[2];
       else if(cur&&!cur.a) cur.q+=" "+line; }
     if(cur&&cur.q&&cur.a) out.push(cur);
-    return out.map(o=>({q:o.q.slice(0,400), a:o.a.slice(0,200), wrong:o.wrong.slice(0,4)}));
+    return out.map(o=>{ const q={q:o.q.slice(0,400), a:o.a.slice(0,200), wrong:o.wrong.slice(0,4)}; if(o.notes) q.notes=o.notes.slice(0,120); return q; });
   }
   const first = text.split(/\r?\n/).find(l=>l.trim()) || "";
   const delim = first.includes("|") ? "|" : first.includes("\t") ? "\t" : ",";
@@ -97,4 +109,28 @@ export async function readQuestionFile(file){
   if(/\.docx?$/i.test(file.name)) throw new Error("Word files can't be read directly. Open the file, copy the questions, and paste them in the box below.");
   const text = await file.text();
   return /\.tsv$/i.test(file.name) ? rowsToQuestions(parseDelimited(text,"\t")) : parseText(text);
+}
+
+// Shrink a picture (file, pasted screenshot or dragged image) so it fits in the database.
+// Returns a data: URL, usually 20–200 KB. Throws an Error with a message for the teacher.
+export async function compressImage(blob){
+  if(!blob || !/^image\//.test(blob.type)) throw new Error("That isn't a picture. Use a PNG, JPG, GIF or WebP image, or paste a screenshot.");
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("That picture couldn't be opened. Try a PNG or JPG.")); i.src = url; });
+    let maxSide = 1000, best = null;
+    for(let attempt = 0; attempt < 4; attempt++){
+      const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * scale)), h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.drawImage(img, 0, 0, w, h);
+      // Graphs and shapes are usually smallest as PNG; photos as WebP/JPEG. Keep whichever is smaller.
+      const tries = [c.toDataURL("image/png"), c.toDataURL("image/webp", 0.85), c.toDataURL("image/jpeg", 0.85)].filter(d => /^data:image\/(png|webp|jpeg)/.test(d));
+      best = tries.sort((a, b) => a.length - b.length)[0];
+      if(best.length < 650000) return best;
+      maxSide = Math.round(maxSide * 0.7);
+    }
+    if(best && best.length < 900000) return best;
+    throw new Error("That picture is too detailed to save. Try a smaller screenshot.");
+  } finally { URL.revokeObjectURL(url); }
 }

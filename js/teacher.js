@@ -1,7 +1,7 @@
 // Teacher dashboard: sign in, manage class codes, and review student progress.
 import * as data from "./data.js";
 import { GAMES } from "./games.js";
-import { SAMPLE, esc, parseText, readQuestionFile } from "./questions.js";
+import { SAMPLE, esc, parseText, readQuestionFile, compressImage } from "./questions.js";
 
 const $ = s => document.querySelector(s);
 const fmtDate = t => t ? new Date(t).toLocaleString([], { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }) : "—";
@@ -11,6 +11,7 @@ const gname = g => GAMES[g] ? GAMES[g].name : g;
 const gtag = g => `<span class="gtag" style="color:${GAMES[g] ? GAMES[g].color : "inherit"}">${esc(gname(g))}</span>`;
 
 let classes = [], runs = [], stats = null, selStudent = null, sort = { key:"name", dir:1 }, editing = null, draft = null;
+let imgCache = {}, removedImgs = [], activePic = null; // pictures: saved ones by id, ones to delete on save, box that receives a paste
 
 /* ---------------- auth ---------------- */
 // Inside Google Sites the page runs in a frame, where Google sign-in is often blocked. Offer the same page in its own tab.
@@ -85,25 +86,82 @@ function renderClassList(){
     ul.appendChild(li);
   }
 }
-function startEdit(c){
-  editing = c.code; setDraft(c.questions.map(q => ({ ...q, wrong:[...(q.wrong || [])] })), "class " + c.code);
+async function startEdit(c){
+  draft = null; editing = c.code; removedImgs = []; imgCache = {};
+  setDraft(c.questions.map(q => ({ ...q, wrong:[...(q.wrong || [])] })), "class " + c.code);
+  if(c.questions.some(q => q.imgId)){ try { imgCache = await data.getImages(c.code); renderQList(); } catch(e){ console.warn(e); } }
   $("#t-title").value = c.title || ""; $("#t-mode").value = c.mode || "auto"; $("#t-misses").value = String(c.misses || 3); $("#t-time").value = String(c.playTime ?? 45);
   $("#t-step2").textContent = "2 · Update class " + c.code; $("#t-create").textContent = "Save changes"; $("#t-cancel-edit").hidden = false;
   $("#t-create-msg").className = "msg"; $("#t-create-msg").textContent = "Saving keeps the same code and all student progress. Load a new file or paste to replace the questions.";
   $("#t-newcode").hidden = true; $("#t-title").focus();
 }
-function stopEdit(){ editing = null; $("#t-step2").textContent = "2 · Save the question set"; $("#t-create").textContent = "Save question set"; $("#t-cancel-edit").hidden = true; $("#t-create-msg").textContent = ""; }
+function stopEdit(){ editing = null; removedImgs = []; draft = null; renderQList(); $("#t-parse-msg").textContent = ""; $("#t-step2").textContent = "2 · Save the question set"; $("#t-create").textContent = "Save question set"; $("#t-cancel-edit").hidden = true; $("#t-create-msg").textContent = ""; }
 $("#t-cancel-edit").addEventListener("click", stopEdit);
 
 function setDraft(qs, source){
   const msg = $("#t-parse-msg");
   if(!qs.length){ draft = null; msg.className = "msg err"; msg.textContent = "No questions found in " + source + ". Each row needs a question and an answer."; $("#t-preview").innerHTML = ""; return; }
+  const before = draft || [];
   draft = qs.slice(0, 500); const mcN = draft.filter(q => q.wrong.length).length;
+  if(editing && before.length && before !== qs){ // keep each picture with the question that has the same wording
+    const byText = new Map(before.filter(q => q.imgId || q.imgData).map(q => [q.q.trim().toLowerCase(), q]));
+    for(const q of draft){ const old = byText.get(q.q.trim().toLowerCase()); if(old && !q.imgId && !q.imgData){ q.imgId = old.imgId; q.imgData = old.imgData; byText.delete(q.q.trim().toLowerCase()); } }
+    for(const old of byText.values()) if(old.imgId) removedImgs.push(old.imgId);
+  }
   msg.className = "msg ok"; msg.textContent = `Found ${draft.length} question${draft.length === 1 ? "" : "s"} in ${source}: ${mcN} multiple choice, ${draft.length - mcN} typed.`;
   if(!$("#t-title").value && /\./.test(source)) $("#t-title").value = source.replace(/\.[^.]+$/, "").slice(0,60);
-  const rows = draft.slice(0,8).map(q => `<tr><td class="wrap">${esc(q.q)}</td><td>${esc(q.a)}</td><td>${q.wrong.length ? `<span class="pill mc">Choices</span> ${esc(q.wrong.join(", "))}` : `<span class="pill ty">Typed</span>`}</td></tr>`).join("");
-  $("#t-preview").innerHTML = `<div class="tablewrap"><table><thead><tr><th>Question</th><th>Answer</th><th>Type</th></tr></thead><tbody>${rows}</tbody></table></div>${draft.length > 8 ? `<p class="note">…and ${draft.length - 8} more.</p>` : ""}`;
+  renderQList();
 }
+/* question list with a picture box per question */
+function picSrc(q){ return q.imgData || (q.imgId && imgCache[q.imgId]) || ""; }
+function renderQList(){
+  if(!draft){ $("#t-preview").innerHTML = ""; return; }
+  const withPics = draft.filter(q => q.imgId || q.imgData).length;
+  $("#t-preview").innerHTML = `<div class="qhead"><b>Questions</b><span>${withPics} with pictures · click a picture box, then paste a screenshot (Ctrl+V or Cmd+V)</span></div>
+    <ol class="qlist">${draft.map((q,i) => {
+      const src = picSrc(q);
+      return `<li class="qrow"><span class="qn">${i+1}</span><div class="qbody"><div class="qq">${esc(q.q)}</div>
+        ${q.notes ? `<div class="qnotes">Notes: ${esc(q.notes)}</div>` : ""}<div class="qa">Answer: ${esc(q.a)}${q.wrong.length ? ` · Wrong: ${esc(q.wrong.join(", "))} <span class="pill mc">Choices</span>` : ` <span class="pill ty">Typed</span>`}</div></div>
+        <div class="picbox${src ? " has" : ""}" tabindex="0" role="button" data-i="${i}" aria-label="Picture for question ${i+1}">
+          ${src ? `<img src="${src}" alt="Picture for question ${i+1}"><span class="picacts"><button type="button" class="btn ghost small" data-act="replace">Replace</button><button type="button" class="btn ghost small" data-act="remove">Remove</button></span>`
+                : q.imgId ? `<span class="pichint">Loading picture…</span>`
+                : `<span class="pichint"><b>+ Add a picture</b>Click here, then paste a screenshot, drag an image in, or <u data-act="choose">choose a file</u></span>`}
+        </div></li>`; }).join("")}</ol>`;
+  document.querySelectorAll("#t-preview .picbox").forEach(box => {
+    const i = +box.dataset.i;
+    box.addEventListener("focus", () => { activePic = i; });
+    box.addEventListener("blur", () => { setTimeout(() => { if(activePic === i && !box.contains(document.activeElement)) activePic = null; }, 0); });
+    box.addEventListener("click", e => {
+      const act = e.target.closest("[data-act]")?.dataset.act;
+      if(act === "remove"){ removePic(i); return; }
+      if(act === "replace" || act === "choose"){ pickFor(i); return; }
+      box.focus();
+    });
+    box.addEventListener("keydown", e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); pickFor(i); } });
+    box.addEventListener("dragover", e => { e.preventDefault(); box.classList.add("over"); });
+    box.addEventListener("dragleave", () => box.classList.remove("over"));
+    box.addEventListener("drop", e => { e.preventDefault(); e.stopPropagation(); box.classList.remove("over"); const f = e.dataTransfer.files[0]; if(f) setPic(i, f); });
+  });
+}
+function pickFor(i){ const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; inp.onchange = () => { if(inp.files[0]) setPic(i, inp.files[0]); }; inp.click(); }
+async function setPic(i, blob){
+  const msg = $("#t-parse-msg"); msg.className = "msg"; msg.textContent = "Adding picture to question " + (i+1) + "…";
+  try {
+    const url = await compressImage(blob);
+    const q = draft[i]; if(q.imgId) removedImgs.push(q.imgId);
+    q.imgId = undefined; q.imgData = url; renderQList();
+    msg.className = "msg ok"; msg.textContent = `Picture added to question ${i+1} (${Math.round(url.length*0.75/1024)} KB). Click Save to keep it.`;
+    const box = document.querySelector(`#t-preview .picbox[data-i="${i}"]`); if(box) box.focus();
+  } catch(e){ msg.className = "msg err"; msg.textContent = e.message || "That picture couldn't be added."; }
+}
+function removePic(i){ const q = draft[i]; if(q.imgId) removedImgs.push(q.imgId); q.imgId = undefined; q.imgData = undefined; renderQList();
+  $("#t-parse-msg").className = "msg"; $("#t-parse-msg").textContent = `Picture removed from question ${i+1}. Click Save to keep this change.`; }
+document.addEventListener("paste", e => {
+  if(activePic === null || !draft || $("#view-teacher").hidden) return;
+  const item = [...(e.clipboardData?.items || [])].find(it => it.type.startsWith("image/"));
+  if(!item){ $("#t-parse-msg").className = "msg err"; $("#t-parse-msg").textContent = "There's no picture on your clipboard. Take a screenshot first (Windows: Win+Shift+S, Mac: Cmd+Ctrl+Shift+4), then paste."; return; }
+  e.preventDefault(); setPic(activePic, item.getAsFile());
+});
 async function handleFile(file){
   const msg = $("#t-parse-msg"); msg.className = "msg"; msg.textContent = "Reading " + file.name + "…";
   try { setDraft(await readQuestionFile(file), file.name); }
@@ -123,10 +181,18 @@ $("#t-create").addEventListener("click", async () => {
   const settings = { title:$("#t-title").value.trim().slice(0,60) || "Class set", mode:$("#t-mode").value, misses:+$("#t-misses").value, playTime:+$("#t-time").value, questions:draft };
   const btn = $("#t-create"); btn.disabled = true; m.textContent = "Saving…";
   try {
-    const code = editing ? await data.saveClass(editing, settings) : await data.createClass(settings);
+    const code = editing || await data.freeCode();
+    const newPics = draft.filter(q => q.imgData);
+    for(let k = 0; k < newPics.length; k++){ m.textContent = `Saving pictures (${k+1} of ${newPics.length})…`;
+      const q = newPics[k]; q.imgId = await data.saveImage(code, q.imgData); imgCache[q.imgId] = q.imgData; q.imgData = undefined; }
+    m.textContent = "Saving questions…";
+    await data.saveClass(code, settings);
+    for(const id of removedImgs) await data.deleteImage(id).catch(e => console.warn(e));
+    removedImgs = [];
     $("#t-code-val").textContent = code; $("#t-newcode").hidden = false;
     m.className = "msg ok"; m.textContent = editing ? "Saved. Students see the new questions on their next run." : "Saved. Students can pick it from the question set list now.";
     if(editing) stopEdit(), m.className = "msg ok", m.textContent = "Saved. Students see the new questions on their next run.";
+    else { draft = null; renderQList(); $("#t-parse-msg").textContent = ""; m.textContent += " To change questions or pictures later, click Edit questions in the list below."; }
     $("#p-class").value = code; await loadClasses();
   } catch(e){ console.error(e); m.className = "msg err"; m.textContent = "The class couldn't be saved. Check your connection, and that your email is in firestore.rules."; }
   btn.disabled = false;

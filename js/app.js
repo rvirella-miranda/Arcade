@@ -13,6 +13,7 @@ const PRACTICE = { code:null, title:"Practice", questions:SAMPLE, mode:"auto", m
 let ctxSet = PRACTICE;
 let nick = store.get("aa-nick") || "";
 let board = [], boardState = "idle", unwatch = null, boardGame = "maze";
+let pics = {}, picsFor = null; // question pictures for the current set: {id: dataUrl}
 
 /* ---------------- input ---------------- */
 const input = { held:{left:false,right:false,up:false,down:false,action:false}, pressed:new Set(), px:null };
@@ -62,6 +63,31 @@ function startRun(gid){
 // Each question is asked once per run. When they've all been asked, the run ends.
 function nextQ(){ return ctxSet.questions[A.queue.pop()]; }
 
+function wirePic(q){
+  const el = $("#qimg"); if(!el) return;
+  if(el.tagName === "BUTTON"){ el.addEventListener("click", () => openLightbox(pics[q.imgId])); return; }
+  loadPics(ctxSet.code).then(() => { const cur = $("#qimg"); if(cur && cur === el && pics[q.imgId]){
+    const b = document.createElement("button"); b.type = "button"; b.className = "qimg"; b.id = "qimg";
+    b.innerHTML = `<img src="${pics[q.imgId]}" alt="Picture for this question"><span class="zoom">Tap to enlarge</span>`;
+    b.addEventListener("click", () => openLightbox(pics[q.imgId])); cur.replaceWith(b); }
+    else if(cur && cur === el) cur.textContent = "This picture couldn't load. Answer from the question text, or ask your teacher."; });
+}
+function openLightbox(src){
+  if(!src) return;
+  const lb = document.createElement("div"); lb.className = "lightbox"; lb.innerHTML = `<img src="${src}" alt="Question picture, enlarged"><span>Close ✕</span>`;
+  const close = () => { lb.remove(); removeEventListener("keydown", onKey, true); };
+  const onKey = e => { if(e.key === "Escape"){ e.preventDefault(); e.stopPropagation(); close(); } };
+  lb.addEventListener("click", close); addEventListener("keydown", onKey, true); document.body.appendChild(lb);
+}
+let picsLoading = null;
+function loadPics(code){
+  if(!code) return Promise.resolve();
+  if(picsFor === code && picsLoading) return picsLoading;
+  picsFor = code; pics = {};
+  picsLoading = data.getImages(code).then(m => { if(picsFor === code) pics = m; }).catch(e => { console.warn("pictures", e); picsLoading = null; });
+  return picsLoading;
+}
+
 function askQuestion(repeat){
   if(!repeat && !A.queue.length){ endRun(); return; }
   A.state = "question"; input.pressed.clear(); for(const k in input.held) input.held[k] = false;
@@ -76,7 +102,9 @@ function askQuestion(repeat){
   const body = mc
     ? `<div class="choices">${choices.map((c,i)=>`<button class="choice" type="button" data-i="${i}"><span class="k">${i+1}</span><span>${esc(c)}</span></button>`).join("")}</div>`
     : `<form class="typed" id="typed-form" autocomplete="off"><input type="text" id="typed-in" placeholder="Type your answer" aria-label="Your answer" maxlength="100"><button class="btn" type="submit">Check</button></form>`;
-  showOverlay(`<div class="qcard"><div class="qlabel">QUESTION ${num} OF ${total} · ${left} MISS${left===1?"":"ES"} LEFT</div><div class="qtext">${esc(q.q)}</div>${body}<p class="msg" style="font-size:.85rem">${mc ? "Tap an answer or press 1–"+choices.length+"." : "Press Enter to check."}</p></div>`);
+  const pic = q.imgId ? (pics[q.imgId] ? `<button type="button" class="qimg" id="qimg"><img src="${pics[q.imgId]}" alt="Picture for this question"><span class="zoom">Tap to enlarge</span></button>` : `<div class="qimg loading" id="qimg">Loading picture…</div>`) : "";
+  showOverlay(`<div class="qcard"><div class="qlabel">QUESTION ${num} OF ${total} · ${left} MISS${left===1?"":"ES"} LEFT</div>${q.notes ? `<div class="qnotes">Notes: ${esc(q.notes)}</div>` : ""}<div class="qtext">${esc(q.q)}</div>${pic}${body}<p class="msg" style="font-size:.85rem">${mc ? "Tap an answer or press 1–"+choices.length+"." : "Press Enter to check."}</p></div>`);
+  wirePic(q);
   if(mc){
     A.mcKeys = choices;
     overlay.querySelectorAll(".choice").forEach(b => b.addEventListener("click", () => {
@@ -341,6 +369,7 @@ async function joinCode(code, announce){
     if(!c){ if(announce){ msg.className = "msg err"; msg.textContent = "That question set was removed. Pick another one."; } loadSets(); return false; }
     setContext({ code, title:String(c.title || "Question set"), questions:Array.isArray(c.questions) && c.questions.length ? c.questions : SAMPLE, mode:c.mode || "auto", misses:+c.misses || 3, playTime:c.playTime ?? 45 });
     store.set("aa-code", code); $("#join-set").value = code;
+    if(c.questions && c.questions.some(q => q.imgId)) { picsFor = null; loadPics(code); }
     if(announce){ msg.className = "msg ok"; msg.textContent = "Ready, " + nick + "! Pick a game to start."; }
     return true;
   } catch(e){

@@ -82,16 +82,37 @@ export async function listClasses(){
   return s.docs.map(d => ({ code:d.id, ...d.data(), createdAt: ms(d.data().createdAt) }));
 }
 export async function saveClass(code, data){
-  const body = { title:data.title, questions:data.questions, mode:data.mode, misses:data.misses, playTime:data.playTime ?? 45, count:data.questions.length };
+  const qs = data.questions.map(q => { const o = { q:q.q, a:q.a, wrong:q.wrong || [] }; if(q.imgId) o.imgId = q.imgId; if(q.notes) o.notes = q.notes; return o; });
+  const body = { title:data.title, questions:qs, mode:data.mode, misses:data.misses, playTime:data.playTime ?? 45, count:qs.length };
   if(!configured){ const d = dload(); const old = d.classes[code]; d.classes[code] = { ...body, listed: old ? old.listed !== false : true, createdAt: old ? old.createdAt : Date.now() }; dsave(d); return code; }
   const { db, F } = await fbInit();
   const ref = F.doc(db, "classes", code); const old = await F.getDoc(ref);
   await F.setDoc(ref, { ...body, listed: old.exists() ? old.data().listed !== false : true, createdAt: old.exists() ? old.data().createdAt : F.serverTimestamp() });
   return code;
 }
-export async function createClass(data){
-  for(let i=0; i<10; i++){ const code = makeCode(); if(!(await getClassAsTeacher(code))) return saveClass(code, data); }
+export async function createClass(data){ return saveClass(await freeCode(), data); }
+export async function freeCode(){
+  for(let i=0; i<10; i++){ const code = makeCode(); if(!(await getClassAsTeacher(code))) return code; }
   throw new Error("Couldn't find a free code. Try again.");
+}
+
+/* ---------------- question pictures (one small document per picture) ---------------- */
+export async function saveImage(code, dataUrl){
+  if(!configured){ const d = dload(); d.images = d.images || {}; const id = "img" + Date.now().toString(36) + Math.random().toString(36).slice(2,7); d.images[id] = { code, data:dataUrl }; dsave(d); return id; }
+  const { db, F } = await fbInit();
+  const ref = await F.addDoc(F.collection(db, "images"), { code, data:dataUrl });
+  return ref.id;
+}
+export async function deleteImage(id){
+  if(!configured){ const d = dload(); if(d.images) delete d.images[id]; dsave(d); return; }
+  const { db, F } = await fbInit(); await F.deleteDoc(F.doc(db, "images", id));
+}
+// All pictures for one question set, as {id: dataUrl}
+export async function getImages(code){
+  if(!configured){ const out = {}; for(const [id, v] of Object.entries(dload().images || {})) if(v.code === code) out[id] = v.data; return out; }
+  await init(); const { db, F } = fb;
+  const s = await F.getDocs(F.query(F.collection(db, "images"), F.where("code", "==", code)));
+  const out = {}; s.docs.forEach(d => out[d.id] = d.data().data); return out;
 }
 async function getClassAsTeacher(code){
   if(!configured) return dload().classes[code] || null;
@@ -117,8 +138,9 @@ export function explain(e){
   return "Something went wrong talking to Firebase" + (c ? " (" + c + ")" : "") + ".";
 }
 export async function deleteClass(code){
-  if(!configured){ const d = dload(); delete d.classes[code]; dsave(d); return; }
+  if(!configured){ const d = dload(); delete d.classes[code]; for(const [id, v] of Object.entries(d.images || {})) if(v.code === code) delete d.images[id]; dsave(d); return; }
   const { db, F } = await fbInit(); await F.deleteDoc(F.doc(db, "classes", code));
+  await deleteWhere("images", code).catch(e => console.warn("Pictures not removed", e));
 }
 
 export async function submitRun(run){

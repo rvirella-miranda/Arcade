@@ -26,6 +26,14 @@ service cloud.firestore {
       allow create, update, delete: if isTeacher();
     }
 
+    // Question pictures. Everyone can see them; only teachers can add or remove them.
+    match /images/{imageId} {
+      allow read: if true;
+      allow create: if isTeacher() && request.resource.data.keys().hasOnly(['code','data'])
+        && request.resource.data.data is string && request.resource.data.data.size() < 1000000;
+      allow update, delete: if isTeacher();
+    }
+
     // One document per finished run (student progress). Students can only add, never read or change.
     // Only teachers can read progress.
     match /runs/{runId} {

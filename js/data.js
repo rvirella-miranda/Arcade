@@ -12,6 +12,8 @@ export const isTeacherEmail = e => !!e && teacherList.includes(String(e).toLower
 
 const CODE_CH = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const makeCode = () => Array.from({length:5}, () => CODE_CH[Math.floor(Math.random()*CODE_CH.length)]).join("");
+// Order of question sets as students see them: lowest "order" first; sets without one go last, newest first.
+export const bySetOrder = (a, b) => ((a.order ?? 1e12) - (b.order ?? 1e12)) || ((b.createdAt || 0) - (a.createdAt || 0));
 const ms = t => (t && typeof t.toMillis === "function") ? t.toMillis() : (typeof t === "number" ? t : Date.now());
 
 /* ---------------- Firebase backend ---------------- */
@@ -62,10 +64,12 @@ export async function listClasses(){
 export async function saveClass(code, data){
   const qs = data.questions.map(q => { const o = { q:q.q, a:q.a, wrong:q.wrong || [] }; if(q.imgId) o.imgId = q.imgId; if(q.notes) o.notes = q.notes; return o; });
   const body = { title:data.title, questions:qs, mode:data.mode, misses:data.misses, playTime:data.playTime ?? 45, count:qs.length };
-  if(!configured){ const d = dload(); const old = d.classes[code]; d.classes[code] = { ...body, listed: old ? old.listed !== false : true, createdAt: old ? old.createdAt : Date.now() }; dsave(d); return code; }
+  if(!configured){ const d = dload(); const old = d.classes[code]; d.classes[code] = { ...body, listed: old ? old.listed !== false : true, order: old && old.order != null ? old.order : -Date.now()/1000, createdAt: old ? old.createdAt : Date.now() }; dsave(d); return code; }
   const { db, F } = await fbInit();
   const ref = F.doc(db, "classes", code); const old = await F.getDoc(ref);
-  await F.setDoc(ref, { ...body, listed: old.exists() ? old.data().listed !== false : true, createdAt: old.exists() ? old.data().createdAt : F.serverTimestamp() });
+  await F.setDoc(ref, { ...body, listed: old.exists() ? old.data().listed !== false : true,
+    order: old.exists() && old.data().order != null ? old.data().order : -Date.now()/1000, // a new set goes to the top
+    createdAt: old.exists() ? old.data().createdAt : F.serverTimestamp() });
   return code;
 }
 export async function createClass(data){ return saveClass(await freeCode(), data); }
@@ -101,8 +105,14 @@ export async function listSets(){
   let all;
   if(!configured) all = Object.entries(dload().classes).map(([code,v]) => ({ code, ...v }));
   else { await init(); const { db, F } = fb; const s = await F.getDocs(F.collection(db, "classes")); all = s.docs.map(d => ({ code:d.id, ...d.data(), createdAt: ms(d.data().createdAt) })); }
-  return all.filter(c => c.listed !== false).map(c => ({ code:c.code, title:c.title || "Question set", count:c.count || (c.questions || []).length, createdAt:c.createdAt || 0 }))
-    .sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+  return all.filter(c => c.listed !== false).map(c => ({ code:c.code, title:c.title || "Question set", count:c.count || (c.questions || []).length, order:c.order, createdAt:c.createdAt || 0 }))
+    .sort(bySetOrder);
+}
+// Save the order of question sets: codes listed top to bottom.
+export async function setOrder(codes){
+  if(!configured){ const d = dload(); codes.forEach((c,i) => { if(d.classes[c]) d.classes[c].order = i; }); dsave(d); return; }
+  const { db, F } = await fbInit(); const b = F.writeBatch(db);
+  codes.forEach((c,i) => b.update(F.doc(db, "classes", c), { order:i })); await b.commit();
 }
 export async function setListed(code, listed){
   if(!configured){ const d = dload(); if(d.classes[code]) d.classes[code].listed = !!listed; dsave(d); return; }

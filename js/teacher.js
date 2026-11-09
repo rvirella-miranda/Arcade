@@ -52,21 +52,24 @@ $("#tab-classes").addEventListener("click", () => tab("classes"));
 
 /* ---------------- classes ---------------- */
 async function loadClasses(){
-  try { classes = (await data.listClasses()).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0)); }
+  try { classes = (await data.listClasses()).sort(data.bySetOrder); }
   catch(e){ console.error(e); classes = []; $("#p-msg").className = "msg err"; $("#p-msg").textContent = "Your classes couldn't load. If you just set up Firebase, check that you published firestore.rules with your email in it."; }
   renderClassList();
-  const sel = $("#p-class"), prev = sel.value;
-  sel.innerHTML = classes.length ? classes.map(c => `<option value="${esc(c.code)}">${esc(c.title || "Class set")} · ${esc(c.code)}</option>`).join("") : `<option value="">No classes yet</option>`;
-  if(classes.some(c => c.code === prev)) sel.value = prev;
+  fillProgressSelect();
   if(!classes.length){ tab("classes"); renderEmptyProgress(); return; }
   await loadRuns();
+}
+function fillProgressSelect(){
+  const sel = $("#p-class"), prev = sel.value;
+  sel.innerHTML = classes.length ? classes.map(c => `<option value="${esc(c.code)}">${esc(c.title || "Question set")} · ${esc(c.code)}</option>`).join("") : `<option value="">No question sets yet</option>`;
+  if(classes.some(c => c.code === prev)) sel.value = prev;
 }
 function renderClassList(){
   const ul = $("#t-classes"); ul.innerHTML = "";
   if(!classes.length){ ul.innerHTML = '<li class="m">No question sets yet. Add questions on the left, then save the set.</li>'; return; }
   for(const c of classes){
     const li = document.createElement("li");
-    li.innerHTML = `<span class="c"></span><span class="t"></span><span class="m"></span><span class="row" style="gap:6px">
+    li.innerHTML = `<span class="ord"><button type="button" class="obtn" data-a="up" aria-label="Move up" title="Move up">▲</button><button type="button" class="obtn" data-a="down" aria-label="Move down" title="Move down">▼</button></span><span class="c"></span><span class="t"></span><span class="m"></span><span class="row" style="gap:6px">
       <button class="btn alt small" type="button" data-a="progress">Progress</button>
       <button class="btn ghost small" type="button" data-a="edit">Edit questions</button>
       <button class="btn ghost small" type="button" data-a="del">Delete</button></span>
@@ -75,6 +78,10 @@ function renderClassList(){
     li.querySelector(".m").textContent = (c.count || (c.questions || []).length) + " questions" + (c.createdAt ? " · " + new Date(c.createdAt).toLocaleDateString() : "");
     li.querySelector('[data-a="progress"]').addEventListener("click", () => { $("#p-class").value = c.code; tab("progress"); loadRuns(); });
     li.querySelector('[data-a="edit"]').addEventListener("click", () => startEdit(c));
+    const idx = classes.indexOf(c);
+    const up = li.querySelector('[data-a="up"]'), down = li.querySelector('[data-a="down"]');
+    up.disabled = idx === 0; down.disabled = idx === classes.length - 1;
+    up.addEventListener("click", () => moveSet(idx, -1)); down.addEventListener("click", () => moveSet(idx, 1));
     const vis = li.querySelector('[data-a="vis"]'); vis.checked = c.listed !== false;
     vis.addEventListener("change", async () => { vis.disabled = true; try { await data.setListed(c.code, vis.checked); c.listed = vis.checked; } catch(e){ console.error(e); vis.checked = !vis.checked; } vis.disabled = false; });
     const del = li.querySelector('[data-a="del"]');
@@ -85,6 +92,15 @@ function renderClassList(){
     });
     ul.appendChild(li);
   }
+}
+async function moveSet(i, dir){
+  const j = i + dir; if(j < 0 || j >= classes.length) return;
+  [classes[i], classes[j]] = [classes[j], classes[i]];
+  classes.forEach((c, k) => c.order = k);
+  renderClassList(); fillProgressSelect();
+  const btn = document.querySelectorAll("#t-classes li")[j]?.querySelector(dir < 0 ? '[data-a="up"]' : '[data-a="down"]'); if(btn && !btn.disabled) btn.focus();
+  try { await data.setOrder(classes.map(c => c.code)); }
+  catch(e){ console.error(e); $("#t-create-msg").className = "msg err"; $("#t-create-msg").textContent = "The new order couldn't be saved. " + data.explain(e); }
 }
 async function startEdit(c){
   draft = null; editing = c.code; removedImgs = []; imgCache = {};

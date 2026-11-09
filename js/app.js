@@ -1,6 +1,6 @@
 // Student arcade: join a class, answer questions to earn lives, post runs and best scores.
 import { GAMES, W, H, shuffle, bigText } from "./games.js";
-import { SAMPLE, esc, normalize, accepted, displayAnswer, isRight, nameKey } from "./questions.js";
+import { esc, normalize, accepted, displayAnswer, isRight, nameKey } from "./questions.js";
 import * as data from "./data.js";
 
 const $ = s => document.querySelector(s);
@@ -9,8 +9,8 @@ const store = {
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
 
-const PRACTICE = { code:null, title:"Practice", questions:SAMPLE, mode:"auto", misses:3, playTime:45 };
-let ctxSet = PRACTICE;
+const NO_SET = { code:null, title:"", questions:[], mode:"auto", misses:3, playTime:45 }; // nothing chosen yet
+let ctxSet = NO_SET;
 let nick = store.get("aa-nick") || "";
 let board = [], boardState = "idle", unwatch = null, boardGame = "maze";
 let pics = {}, picsFor = null; // question pictures for the current set: {id: dataUrl}
@@ -23,7 +23,7 @@ const release = k => { input.held[k] = false; };
 
 /* ---------------- controller ---------------- */
 const cv = $("#cv"), cx = cv.getContext("2d"), overlay = $("#overlay");
-const A = { set:PRACTICE, gid:null, game:null, state:"idle", score:0, misses:0, right:0, paused:false, token:0, readyT:0, queue:[], mcKeys:null, best:0, answers:[], timeLeft:0, needLife:true };
+const A = { set:NO_SET, gid:null, game:null, state:"idle", score:0, misses:0, right:0, paused:false, token:0, readyT:0, queue:[], mcKeys:null, best:0, answers:[], timeLeft:0, needLife:true };
 const api = {
   add(n){ A.score += n; $("#hud-score").textContent = A.score; },
   lose(){
@@ -53,7 +53,7 @@ function startRun(gid){
   // Make sure the student's own question set is loaded before a run starts.
   const jm = $("#join-msg");
   if(joining){ jm.className = "msg"; jm.textContent = "Loading question sets… try again in a second."; return; }
-  if(!ctxSet.code && sets.length){ jm.className = "msg err"; jm.textContent = "Pick your question set first, then choose a game."; $("#join-set").focus(); scrollTo({ top:0, behavior:"smooth" }); return; }
+  if(!ctxSet.code){ jm.className = "msg err"; jm.textContent = sets.length ? "Pick your question set first, then choose a game." : "There are no question sets yet. Ask your teacher."; $("#join-set").focus(); scrollTo({ top:0, behavior:"smooth" }); return; }
   if(ctxSet.code && !nick){ jm.className = "msg err"; jm.textContent = "Type your name first so your teacher can see your progress."; $("#join-nick").focus(); scrollTo({ top:0, behavior:"smooth" }); return; }
   A.set = ctxSet; // this run keeps using this set even if the page changes sets in the background
   A.token++; A.gid = gid; A.game = GAMES[gid].make(api); A.game.reset();
@@ -338,12 +338,12 @@ function setContext(set){
     unwatch = data.watchBoard(set.code, entries => { clearTimeout(timer); board = entries; boardState = "ok"; renderBoard(); renderCabinetBests(); },
       () => { clearTimeout(timer); boardState = "error"; renderBoard(); });
   } else {
-    $("#ctx-text").textContent = sets.length ? "Pick your question set above to start. Only your teacher's questions will be asked." : "Practice mode with sample 6th–8th grade questions. Scores stay on this device.";
+    $("#ctx-text").textContent = sets.length ? "Pick your question set above to start." : "There are no question sets yet. Ask your teacher.";
     $("#ctx-leave").hidden = true;
   }
   renderBoard(); renderCabinetBests();
 }
-$("#ctx-leave").addEventListener("click", () => { store.set("aa-code", null); setContext(PRACTICE); $("#join-set").value = ""; $("#join-msg").textContent = ""; });
+$("#ctx-leave").addEventListener("click", () => { store.set("aa-code", null); setContext(NO_SET); $("#join-set").value = ""; $("#join-msg").textContent = ""; });
 
 /* ---------------- join: type a name, pick a question set ---------------- */
 $("#join-nick").value = nick;
@@ -357,7 +357,7 @@ async function loadSets(selectCode){
   sel.innerHTML = `<option value="">${sets.length ? "Choose your question set" : "No question sets yet. Ask your teacher."}</option>` +
     sets.map(x => `<option value="${esc(x.code)}">${esc(x.title)} (${x.count} questions)</option>`).join("");
   if(want && sets.some(x => x.code === want)) sel.value = want;
-  if(!ctxSet.code) setContext(PRACTICE); // refresh the "pick your set" note
+  if(!ctxSet.code) setContext(NO_SET); // refresh the "pick your set" note
   $("#ctx-leave").hidden = true;
 }
 $("#join-form").addEventListener("submit", async e => {
@@ -376,7 +376,8 @@ async function joinCode(code, announce){
   try {
     const c = await data.getClass(code);
     if(!c){ if(announce){ msg.className = "msg err"; msg.textContent = "That question set was removed. Pick another one."; } loadSets(); return false; }
-    setContext({ code, title:String(c.title || "Question set"), questions:Array.isArray(c.questions) && c.questions.length ? c.questions : SAMPLE, mode:c.mode || "auto", misses:+c.misses || 3, playTime:c.playTime ?? 45 });
+    if(!Array.isArray(c.questions) || !c.questions.length){ if(announce){ msg.className = "msg err"; msg.textContent = "This set has no questions yet. Ask your teacher."; } return false; }
+    setContext({ code, title:String(c.title || "Question set"), questions:c.questions, mode:c.mode || "auto", misses:+c.misses || 3, playTime:c.playTime ?? 45 });
     store.set("aa-code", code); $("#join-set").value = code;
     if(c.questions && c.questions.some(q => q.imgId)) { picsFor = null; loadPics(code); }
     if(announce){ msg.className = "msg ok"; msg.textContent = "Ready, " + nick + "! Pick a game to start."; }
@@ -396,8 +397,8 @@ $("#join-set").addEventListener("change", () => {
 $("#join-nick").addEventListener("change", () => { const n = $("#join-nick").value.trim().replace(/\s+/g, " ").slice(0,16); if(n){ nick = n; store.set("aa-nick", nick); } });
 
 /* ---------------- boot ---------------- */
-buildCabinets(); setContext(PRACTICE); route();
-if(data.mode === "demo"){ const n = $("#mode-note"); n.hidden = false; n.innerHTML = "<b>Demo mode.</b> Firebase isn't connected yet, so scores stay in this browser. Try the sample question set."; }
+buildCabinets(); setContext(NO_SET); route();
+if(data.mode === "demo"){ const n = $("#mode-note"); n.hidden = false; n.innerHTML = "<b>Demo mode.</b> Firebase isn't connected yet, so everything stays in this browser."; }
 data.init().catch(e => console.warn("Firebase didn't start", e)).then(async () => {
   const urlCode = (new URLSearchParams(location.search).get("code") || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0,6);
   if(urlCode) store.set("aa-code", urlCode);

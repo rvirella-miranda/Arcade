@@ -1,29 +1,4 @@
-// Question sets: sample data, answer checking, and file/paste parsing.
-
-export const SAMPLE = [
-  {q:"What is 3/4 written as a decimal?",a:"0.75",wrong:["0.34","0.43","7.5"]},
-  {q:"Solve for x: 2x + 5 = 17",a:"6",wrong:["11","8.5","12"]},
-  {q:"Which organelle releases energy for the cell?",a:"Mitochondria",wrong:["Nucleus","Ribosome","Cell wall"]},
-  {q:"Which planet is closest to the Sun?",a:"Mercury",wrong:["Venus","Mars","Earth"]},
-  {q:"What is 15% of 200?",a:"30",wrong:["15","20","300"]},
-  {q:"Which word is a synonym for \"abundant\"?",a:"Plentiful",wrong:["Scarce","Tiny","Hidden"]},
-  {q:"What is the chemical formula for water?",a:"H2O",wrong:[]},
-  {q:"What is the area of a rectangle 8 cm long and 5 cm wide? (number only)",a:"40;40 cm;40 square cm;40 cm2",wrong:[]},
-  {q:"What is the capital of Canada?",a:"Ottawa",wrong:[]},
-  {q:"Which ancient civilization built the pyramids at Giza?",a:"Egyptians",wrong:["Romans","Greeks","Maya"]},
-  {q:"What is 5 cubed?",a:"125",wrong:["15","25","53"]},
-  {q:"What type of rock forms when lava cools?",a:"Igneous",wrong:["Sedimentary","Metamorphic","Limestone"]},
-  {q:"Which part of speech describes a noun?",a:"Adjective",wrong:["Adverb","Verb","Preposition"]},
-  {q:"What is the greatest common factor of 18 and 24?",a:"6;six",wrong:[]},
-  {q:"Who was the first President of the United States?",a:"George Washington;Washington",wrong:[]},
-  {q:"Which gas do plants take in for photosynthesis?",a:"Carbon dioxide",wrong:["Oxygen","Nitrogen","Hydrogen"]},
-  {q:"Simplify the ratio 4:6",a:"2:3",wrong:["4:3","1:2","3:2"]},
-  {q:"The lesson or message of a story is its…",a:"Theme",wrong:["Setting","Plot","Conflict"]},
-  {q:"How many sides does a hexagon have?",a:"6;six",wrong:[]},
-  {q:"Which branch of the U.S. government makes laws?",a:"Legislative",wrong:["Executive","Judicial","Military"]},
-  {q:"What is −7 + 12?",a:"5;five",wrong:[]},
-  {q:"What is the boiling point of water in °C at sea level? (number only)",a:"100",wrong:[]}
-];
+// Question sets: answer checking, and file/paste parsing.
 
 export const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 

@@ -2,7 +2,7 @@
 // otherwise a DEMO store kept in this browser's localStorage so you can try everything first.
 // Load the settings file fresh every time, so edits on GitHub show up right away instead of after the browser's 10-minute cache.
 const { firebaseConfig, TEACHER_EMAILS } = await import("./firebase-config.js?t=" + Date.now());
-import { SAMPLE, nameKey } from "./questions.js";
+import { nameKey } from "./questions.js";
 
 const FB = "https://www.gstatic.com/firebasejs/10.12.2/";
 export const configured = !!(firebaseConfig && firebaseConfig.apiKey && !/^PASTE/.test(firebaseConfig.apiKey));
@@ -37,29 +37,7 @@ function dload(){
 }
 function dsave(d){ try { localStorage.setItem(DKEY, JSON.stringify(d)); } catch {} demoListeners.forEach(f => f()); }
 const demoListeners = new Set();
-function seedDemo(){
-  const now = Date.now(), day = 864e5;
-  const d = { classes:{ DEMO1:{ title:"Sample review (demo)", questions:SAMPLE, mode:"auto", misses:3, count:SAMPLE.length, createdAt:now-3*day } }, runs:[], board:{} };
-  const names = ["Demo · Ava M.","Demo · Liam R.","Demo · Sofia G.","Demo · Noah T.","Demo · Mia K."];
-  const games = ["maze","rush","stack","snake","brick"];
-  let seed = 7; const rnd = () => (seed = (seed*9301+49297)%233280)/233280;
-  names.forEach((n, si) => {
-    for(let r=0; r<3+si%3; r++){
-      const game = games[Math.floor(rnd()*5)], answers = [];
-      const skill = 0.55 + si*0.08;
-      for(let k=0; k<6+Math.floor(rnd()*6); k++){
-        const q = SAMPLE[Math.floor(rnd()*SAMPLE.length)], ok = rnd() < skill;
-        answers.push({ q:q.q, a:q.a.split(";")[0], ok, given: ok ? q.a.split(";")[0] : (q.wrong[0] || "no answer") });
-      }
-      const right = answers.filter(a=>a.ok).length, score = Math.round(right*(80+rnd()*120));
-      const run = { code:"DEMO1", name:n, nameKey:nameKey(n), game, score, right, wrong:answers.length-right, answers, t: now - Math.floor(rnd()*3*day) };
-      d.runs.push(run);
-      const id = `DEMO1_${game}_${run.nameKey}`;
-      if(!d.board[id] || d.board[id].best < score) d.board[id] = { code:"DEMO1", game, name:n, nameKey:run.nameKey, best:score, t:run.t };
-    }
-  });
-  return d;
-}
+function seedDemo(){ return { classes:{}, runs:[], board:{}, images:{} }; } // demo mode starts empty
 
 /* ---------------- Public API ---------------- */
 export async function init(){

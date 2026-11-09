@@ -1,7 +1,7 @@
 // Teacher dashboard: sign in, manage class codes, and review student progress.
 import * as data from "./data.js";
 import { GAMES } from "./games.js";
-import { SAMPLE, esc, parseText, readQuestionFile, compressImage } from "./questions.js";
+import { esc, parseText, readQuestionFile, compressImage } from "./questions.js";
 
 const $ = s => document.querySelector(s);
 const fmtDate = t => t ? new Date(t).toLocaleString([], { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }) : "—";
@@ -173,11 +173,10 @@ drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add(
 drop.addEventListener("dragleave", () => drop.classList.remove("over"));
 drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); const f = e.dataTransfer.files[0]; if(f) handleFile(f); });
 $("#t-parse").addEventListener("click", () => setDraft(parseText($("#t-paste").value), "pasted text"));
-$("#t-sample").addEventListener("click", () => { setDraft(SAMPLE.map(q => ({ ...q, wrong:[...q.wrong] })), "the sample set"); if(!$("#t-title").value) $("#t-title").value = "Sample review"; });
 
 $("#t-create").addEventListener("click", async () => {
   const m = $("#t-create-msg"); m.className = "msg";
-  if(!draft){ m.className = "msg err"; m.textContent = "Add questions first: choose a file, paste them, or load the sample set."; return; }
+  if(!draft){ m.className = "msg err"; m.textContent = "Add questions first: choose a file or paste them."; return; }
   const settings = { title:$("#t-title").value.trim().slice(0,60) || "Class set", mode:$("#t-mode").value, misses:+$("#t-misses").value, playTime:+$("#t-time").value, questions:draft };
   const btn = $("#t-create"); btn.disabled = true; m.textContent = "Saving…";
   try {

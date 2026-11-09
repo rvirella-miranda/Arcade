@@ -34,8 +34,8 @@
         </form>
         <p id="join-msg" class="msg"></p>
         <div id="ctx-banner" class="banner">
-          <span id="ctx-text">Practice mode with sample 6th–8th grade questions.</span>
-          <button class="btn ghost small" id="ctx-leave" type="button" hidden>Switch to practice</button>
+          <span id="ctx-text">Pick your question set above to start.</span>
+          <button class="btn ghost small" id="ctx-leave" type="button" hidden>Change set</button>
         </div>
       </div>
       <ol class="how">
@@ -102,7 +102,7 @@
         <button class="btn ghost small" id="btn-signout" type="button" hidden>Sign out</button>
       </div>
     </div>
-  <div id="demo-note" class="callout" hidden><b>Demo mode.</b> Firebase isn't connected yet, so this dashboard shows sample students (marked “Demo”) and saves only in this browser. Follow the README to connect your own Firebase project. <button class="btn ghost small" id="btn-reset-demo" type="button">Reset demo data</button></div>
+  <div id="demo-note" class="callout" hidden><b>Demo mode.</b> Firebase isn't connected yet, so this dashboard saves only in this browser. Follow the README to connect your own Firebase project. <button class="btn ghost small" id="btn-reset-demo" type="button">Reset demo data</button></div>
 
   <section id="gate" class="card stack" hidden>
     <h2>Sign in to see your classes</h2>
@@ -166,7 +166,7 @@
             <label for="t-paste">Or paste questions</label>
             <textarea id="t-paste" placeholder="What is 3/4 as a decimal? | 0.75 | 0.34 | 0.43 | 7.5&#10;Capital of Canada | Ottawa"></textarea>
           </div>
-          <div class="row"><button class="btn ghost small" id="t-parse" type="button">Read pasted text</button><button class="btn ghost small" id="t-sample" type="button">Load sample set</button></div>
+          <div class="row"><button class="btn ghost small" id="t-parse" type="button">Read pasted text</button></div>
           <details>
             <summary style="cursor:pointer;color:var(--muted)">How to format your file</summary>
             <div class="stack" style="margin-top:10px;gap:8px">

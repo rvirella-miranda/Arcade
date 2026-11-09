@@ -6,7 +6,7 @@ Students answer your questions to earn play time in six arcade-style games (Maze
 - The dashboard is protected by Google sign-in. Students who click **Teacher** just see a sign-in screen.
 - `teacher.html` only forwards to the dashboard, so old bookmarks keep working.
 
-The site works right away in **demo mode**: data stays in your own browser, and there's a sample class `DEMO1` with demo students. Follow the steps below to connect Firebase so data is shared and saved.
+The site works right away in **demo mode**: data stays in your own browser. Follow the steps below to connect Firebase so data is shared and saved.
 
 ---
 

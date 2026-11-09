@@ -276,3 +276,10 @@ a.btn{text-decoration:none;display:inline-block}
 /* notes to study, under the question number */
 .qnotes{font-weight:700;font-size:.9rem;color:var(--cyan);margin-top:-6px;overflow-wrap:anywhere}
 .qbody .qnotes{margin-top:2px;font-size:.82rem}
+
+/* order buttons for question sets */
+.classes .ord{display:flex;flex-direction:column;gap:3px}
+.obtn{width:28px;height:22px;border-radius:6px;border:1.5px solid var(--line);background:var(--panel);color:var(--brown);font-size:.7rem;line-height:1;padding:0}
+.obtn:hover:not(:disabled){border-color:var(--olive);color:var(--olive)}
+.obtn:disabled{opacity:.3;cursor:default}
+.sethint{color:var(--muted);font-size:.85rem;margin:-4px 0 4px}

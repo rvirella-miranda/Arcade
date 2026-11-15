@@ -219,7 +219,7 @@ document.querySelectorAll(".pb").forEach(b => { const k = b.dataset.k;
   b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up);
 });
 
-function showView(v){ for(const id of ["home","play","teacher"]) $("#view-"+id).hidden = id !== v; $("#btn-teacher").hidden = v === "teacher"; if(v !== "play") scrollTo({ top:0 }); }
+function showView(v){ document.body.dataset.view = v; for(const id of ["home","play","teacher"]) $("#view-"+id).hidden = id !== v; $("#btn-teacher").hidden = v === "teacher"; if(v !== "play") scrollTo({ top:0 }); }
 
 /* ---------------- teacher view (same page, behind the Teacher button) ---------------- */
 let teacherLoaded = null;
@@ -243,7 +243,7 @@ function buildCabinets(){
   const wrap = $("#cabinets"), previews = [];
   for(const [gid,g] of Object.entries(GAMES)){
     const b = document.createElement("button"); b.className = "cab"; b.type = "button"; b.style.setProperty("--c", g.color); b.style.setProperty("--nc", g.color.replace("var(--","var(--neon-"));
-    b.innerHTML = `<canvas width="640" height="480" aria-hidden="true"></canvas><div class="info"><span class="nm">${g.name}</span><span class="ds">${g.desc}</span><span class="best" data-best="${gid}"></span></div>`;
+    b.innerHTML = `<canvas width="640" height="480" aria-hidden="true"></canvas><div class="info"><span class="nm">${g.name}</span><span class="ds">${g.desc}</span><span class="best" data-best="${gid}"></span><span class="go">Play →</span></div>`;
     b.addEventListener("click", () => startRun(gid));
     wrap.appendChild(b);
     const inst = g.make({ add(){}, lose(){ inst.startLife(); } }); inst.reset();

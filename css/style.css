@@ -283,3 +283,129 @@ a.btn{text-decoration:none;display:inline-block}
 .obtn:hover:not(:disabled){border-color:var(--olive);color:var(--olive)}
 .obtn:disabled{opacity:.3;cursor:default}
 .sethint{color:var(--muted);font-size:.85rem;margin:-4px 0 4px}
+
+/* =====================================================================
+   Theme v11 — matches "Miranda's Math Class": cream graph paper, plum ink,
+   sage Luckiest Guy headings, pastel cards with washi tape. Game screens stay dark.
+   ===================================================================== */
+:root{
+  --bg:#f6f1ea; --bg2:#efe8f2; --panel:#fffdfa; --field:#fffefb; --line:#ddd2df;
+  --ink:#3a3045; --muted:#6c6276; --dim:#958a9c;
+  --olive:#5f7d4b; --olive-d:#4a6339; --brown:#3f3450; --rust:#9b4a63;
+  --sage:#a9bd8b; --plum:#3a3045; --lav-band:#ede5ef; --sage-band:#e9ecdf; --offset:#ddd3e8;
+  --head:"Luckiest Guy", "Lilita One", "Arial Rounded MT Bold", sans-serif;
+  --serif:"Lora", Georgia, "Times New Roman", serif;
+  --body:"Poppins", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+body{font-family:var(--body);color:var(--ink);background-color:var(--bg);
+  background-image:linear-gradient(rgba(58,48,69,.05) 1px, transparent 1px),linear-gradient(90deg, rgba(58,48,69,.05) 1px, transparent 1px);
+  background-size:26px 26px}
+h1,h2,h3{font-family:var(--serif);font-weight:600;color:var(--plum);letter-spacing:0}
+.cabinet{font-family:"Atkinson Hyperlegible", system-ui, sans-serif}
+.cabinet h1,.cabinet h2,.cabinet h3{font-family:"Atkinson Hyperlegible", system-ui, sans-serif}
+.eyebrow{font-family:var(--body);font-weight:700;font-size:.78rem;letter-spacing:.22em;text-transform:uppercase;color:var(--olive);text-align:center;margin:0}
+.eyebrow.left{text-align:left}
+.section-title{font-family:var(--head);font-weight:400;color:var(--sage);font-size:clamp(1.9rem,4.5vw,2.6rem);line-height:1.05;letter-spacing:.01em;margin-top:4px}
+.ctr{text-align:center;justify-content:center}
+
+/* header */
+.top{display:block;position:relative}
+.topbar{display:flex;justify-content:flex-end;align-items:center;gap:10px;flex-wrap:wrap}
+.hero{text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;padding-block:6px 4px}
+.logo{font-family:"Luckiest Guy", var(--head);font-weight:400;color:var(--sage);font-size:clamp(2.8rem,8vw,4.6rem);line-height:1;letter-spacing:.02em;margin:0;text-shadow:2px 2px 0 rgba(58,48,69,.08)}
+.lede{font-family:var(--serif);font-style:italic;font-size:clamp(1.1rem,2.4vw,1.4rem);color:var(--plum);max-width:36em;text-align:center;margin:0 auto}
+.lede.small{font-size:clamp(1rem,2vw,1.2rem);margin-top:8px}
+.tag{display:none}
+.mode-note{background:var(--panel);border:1.5px solid var(--line);border-radius:12px;color:var(--muted)}
+.mode-note b{color:var(--rust)}
+
+/* cards: plum outline, slightly hand-cut corners, pastel offset shadow */
+.card{position:relative;background:var(--panel);border:2px solid var(--brown);
+  border-radius:16px 20px 14px 18px;box-shadow:7px 7px 0 var(--offset)}
+.card::after,.cab::after{content:none}
+.taped{position:relative}
+.taped::before{content:"";position:absolute;top:-14px;left:50%;width:124px;height:26px;transform:translateX(-50%) rotate(-2deg);
+  background-color:rgba(255,255,255,.5);background-image:repeating-linear-gradient(90deg,var(--tape,#d99aab) 0 7px,transparent 7px 11px);
+  opacity:.9;border-radius:2px;pointer-events:none;z-index:1}
+.join-grid{--tape:#d99aab;transform:rotate(-.3deg)}
+
+/* buttons: plum pills */
+.btn{background:var(--plum);color:#fff;border-radius:999px;box-shadow:3px 3px 0 var(--sage);font-family:var(--body);font-weight:600}
+.btn:active{box-shadow:1px 1px 0 var(--sage)}
+.btn.alt{background:var(--rust);color:#fff;box-shadow:3px 3px 0 #e3c3cf}
+.btn.ghost{background:var(--panel);color:var(--plum);border:2px solid var(--brown);box-shadow:none}
+input[type=text],select,textarea{border:2px solid var(--line);border-radius:12px;background:var(--field)}
+input[type=text]:focus,select:focus,textarea:focus{border-color:var(--plum);box-shadow:0 0 0 3px rgba(169,189,139,.45)}
+.field label{color:var(--muted);font-family:var(--body);letter-spacing:.12em}
+:focus-visible{outline-color:var(--rust)}
+
+/* how it works */
+.how li{color:var(--muted)}
+.how b{color:var(--plum)}
+.how .how-title{font-family:var(--serif);font-weight:600;font-size:1.25rem;color:var(--plum);display:block;margin-bottom:2px}
+.how .n{font-family:var(--serif);font-weight:600;font-size:.95rem;width:1.9em;height:1.9em;min-width:1.9em;border-radius:50%;
+  background:var(--sage-band);border:1.5px solid var(--sage);color:var(--olive);display:flex;align-items:center;justify-content:center;line-height:1}
+.banner{border:2px dashed var(--line);background:var(--bg2);border-radius:14px}
+
+/* "Pick a game!" label, like "Where are you headed today?" */
+.games{align-items:center;gap:26px;padding-top:10px}
+.label-banner{--tape:#a9bd8b;align-self:center;background:var(--panel);border:2px solid var(--brown);border-radius:6px;padding:12px 38px;
+  transform:rotate(-1deg);box-shadow:6px 6px 0 var(--offset)}
+.label-banner h2{font-family:var(--head);font-weight:400;color:var(--sage);font-size:clamp(1.6rem,4vw,2.2rem);margin:0;letter-spacing:.02em}
+.cabinets{width:100%}
+
+/* game cards: pastel paper with tape, dark arcade screen inside */
+.cab{--card:#f4dfe6;--shade:#e3c3cf;--tape:#d99aab;--go:#9b4a63;
+  background:var(--card);border:2px solid var(--brown);border-radius:14px 18px 12px 16px;box-shadow:6px 6px 0 var(--shade);
+  padding:14px 12px 12px;margin-top:10px;transform:rotate(-1deg);transition:transform .18s, box-shadow .18s}
+.cab:nth-child(2n){transform:rotate(1deg)}
+.cab:nth-child(6n+2){--card:#dcece3;--shade:#bfd9cb;--tape:#9cc3ae;--go:#3f7a62}
+.cab:nth-child(6n+3){--card:#f6e9c9;--shade:#e6d3a3;--tape:#d9b860;--go:#8a6a1f}
+.cab:nth-child(6n+4){--card:#e8e0f2;--shade:#d0c4e3;--tape:#b19fd6;--go:#6b5aa0}
+.cab:nth-child(6n+5){--card:#dfe8f4;--shade:#c3d3ea;--tape:#8fb0dc;--go:#3d6aa8}
+.cab:nth-child(6n+6){--card:#e4ead8;--shade:#cbd8b6;--tape:#a9bd8b;--go:#5f7d4b}
+.cab::before{content:"";position:absolute;top:-13px;left:50%;width:96px;height:24px;transform:translateX(-50%) rotate(-3deg);
+  background-color:rgba(255,255,255,.5);background-image:repeating-linear-gradient(90deg,var(--tape) 0 6px,transparent 6px 10px);opacity:.95;border-radius:2px}
+.cab:hover,.cab:focus-visible{transform:rotate(0) translateY(-4px);box-shadow:8px 10px 0 var(--shade)}
+.cab canvas{border:5px solid #2b2236;border-radius:10px;box-shadow:inset 0 0 0 1px #000, 0 3px 0 #2b2236}
+.cab .info{padding:12px 4px 2px;align-items:center;text-align:center}
+.cab .nm{font-family:var(--serif);font-weight:600;font-size:1.3rem;color:var(--plum);justify-content:center}
+.cab .nm::before{width:9px;height:9px;box-shadow:0 0 0 2px #2b2236}
+.cab .ds{color:var(--muted);font-size:.86rem}
+.cab .best{color:var(--dim);font-size:.78rem}
+.cab .go{font-family:var(--body);font-weight:700;font-size:.74rem;letter-spacing:.2em;text-transform:uppercase;color:var(--go);margin-top:4px}
+@media (prefers-reduced-motion:reduce){.cab,.cab:nth-child(2n),.cab:hover{transform:none;transition:none}}
+
+/* leaderboard band (full-width lavender strip, like "Important dates") */
+.band{background:var(--lav-band);box-shadow:0 0 0 100vmax var(--lav-band);clip-path:inset(0 -100vmax);padding-block:44px 40px;margin-top:22px;
+  display:flex;flex-direction:column;gap:14px;align-items:center}
+.band .chips{justify-content:center}
+.band .ranks{width:100%;max-width:880px}
+.band .ranks li{background:var(--panel);border:2px solid var(--brown);border-radius:12px 14px 10px 14px;box-shadow:4px 4px 0 var(--offset)}
+.band .ranks li.empty{border:0;box-shadow:none;background:none;text-align:center}
+.ranks .pl{font-family:var(--serif);font-weight:600;color:var(--dim)}
+.ranks .sc{font-family:var(--serif);font-weight:600;color:var(--plum)}
+.ranks li.me{outline:3px solid var(--sage);outline-offset:1px}
+.chip{border:2px solid var(--line);background:var(--panel);font-family:var(--body);font-weight:600}
+.chip[aria-pressed="true"]{background:var(--plum);border-color:var(--plum);color:#fff}
+.foot{font-family:var(--serif);font-style:italic;color:var(--muted);padding-top:8px;text-align:center}
+
+/* play view: the cabinet keeps the dark arcade look, framed in plum */
+.cabinet{border:10px solid var(--plum);box-shadow:inset 0 0 0 2px #1d1626, 9px 9px 0 var(--offset);background:linear-gradient(180deg,#241c3a,#151029)}
+.hint{color:var(--muted)}
+
+/* teacher dashboard touches */
+.tabs{background:var(--bg2);border:2px solid var(--line);border-radius:999px}
+.tab{border-radius:999px;font-family:var(--body)}
+.tab[aria-selected="true"]{background:var(--plum);color:#fff;box-shadow:none}
+.tile{border:2px solid var(--brown);border-radius:14px 16px 12px 16px;box-shadow:5px 5px 0 var(--offset)}
+.tile b{font-family:var(--serif);color:var(--plum)}
+.callout{border-left-color:var(--sage);background:var(--panel);border-radius:10px}
+.classes li{background:var(--bg2);border-radius:12px}
+.classes .c{color:var(--rust)}
+.picbox{border-color:var(--sage)}
+@media (max-width:620px){.join-grid,.label-banner{transform:none}.cab,.cab:nth-child(2n){transform:none}}
+.band .ranks li.empty{grid-column:1/-1}
+/* while a game is open, drop the big title so the cabinet gets the room */
+body[data-view="play"] .hero{display:none}
+body[data-view="play"] .cabinet{max-width:min(100%, calc((100vh - 170px) * 4 / 3 + 48px))}

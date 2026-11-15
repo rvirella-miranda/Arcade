@@ -6,27 +6,28 @@
 <title>Answer Arcade</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Lilita+One&family=Silkscreen:wght@400;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Lora:ital,wght@0,500;0,600;1,400;1,500&family=Poppins:wght@400;500;600;700&family=Silkscreen:wght@400;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <div class="wrap">
   <header class="top">
-    <div>
-      <h1 class="logo">Answer Arcade</h1>
-      <p class="tag"><span class="blink">▶</span> Answer right · earn play time · beat the high score</p>
-    </div>
-    <div class="row" style="align-items:center;gap:10px">
+    <div class="topbar">
       <div class="mode-note" id="mode-note" hidden></div>
       <button class="btn ghost small" id="btn-teacher" type="button">Teacher</button>
+    </div>
+    <div class="hero">
+      <p class="eyebrow">Welcome to the</p>
+      <h1 class="logo">Answer Arcade</h1>
+      <p class="lede">Answer right. Earn play time. Beat the high score.</p>
     </div>
   </header>
 
   <!-- HOME -->
   <section id="view-home" class="stack" style="gap:24px">
-    <div class="card join-grid">
+    <div class="card join-grid taped">
       <div class="stack">
-        <h2>Who's playing?</h2>
+        <div><p class="eyebrow left">Step 1</p><h2 class="section-title">Who's playing?</h2></div>
         <form id="join-form" class="row" autocomplete="off">
           <div class="field"><label for="join-nick">Your name</label><input type="text" id="join-nick" maxlength="16" placeholder="First name + last initial"></div>
           <div class="field grow"><label for="join-set">Question set</label><select id="join-set"><option value="">Loading question sets…</option></select></div>
@@ -39,6 +40,7 @@
         </div>
       </div>
       <ol class="how">
+        <li class="how-title">How it works</li>
         <li><span class="n">1</span><span><b>Type your name and pick your question set,</b> then pick a game below.</span></li>
         <li><span class="n">2</span><span><b>Answer a question.</b> Get it right to earn play time.</span></li>
         <li><span class="n">3</span><span><b id="how-play">Play for up to 45 seconds</b><span id="how-play2">, or until you lose that life.</span> Then answer the next question to keep going. Your score keeps adding up.</span></li>
@@ -46,19 +48,20 @@
       </ol>
     </div>
 
-    <div class="stack">
-      <h2>Pick a game</h2>
+    <div class="stack games">
+      <div class="label-banner taped"><h2>Pick a game!</h2></div>
       <div id="cabinets" class="cabinets"></div>
+      <p class="lede small">Mistakes are proof you're trying. Read the question twice, then go for it.</p>
     </div>
 
-    <div class="card">
-      <div class="board-head">
-        <h2 id="board-title">Top scores</h2>
-        <div class="chips" id="board-chips"></div>
-      </div>
+    <div class="band">
+      <p class="eyebrow">Beat the high score</p>
+      <h2 class="section-title ctr" id="board-title">Top scores</h2>
+      <div class="chips ctr" id="board-chips"></div>
       <ol class="ranks" id="board-list"></ol>
-      <p class="note" id="board-note"></p>
+      <p class="note ctr" id="board-note"></p>
     </div>
+    <footer class="foot"><span>Answer Arcade · Mrs. Miranda's Math Class</span></footer>
   </section>
 
   <!-- PLAY -->

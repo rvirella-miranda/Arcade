@@ -793,6 +793,281 @@ function HopGame(api, theme){
   return {reset,startLife,update,draw,hint:"Left/Right to move, Up or Space to jump (hold for higher). Grab stars, stomp ink blots, reach the eraser. Losing a life sends you back to level 1."};
 }
 
+// ---------- shared on-screen keyboard (for the typing games) ----------
+const KB_ROWS=["QWERTYUIOP","ASDFGHJKL","ZXCVBNM"];
+function kbLayout(y0,withSpace){
+  const keys=[], kw=46, kh=40, gap=6;
+  KB_ROWS.forEach((row,r)=>{
+    const extra=r===2?2:0, n=row.length+extra, wide=r===2?70:kw;
+    let total=row.length*(kw+gap)-gap+(r===2?2*(wide+gap):0);
+    let x=(W-total)/2, y=y0+r*(kh+gap);
+    if(r===2){keys.push({k:"Enter",label:"ENTER",x,y,w:wide,h:kh});x+=wide+gap;}
+    for(const ch of row){keys.push({k:ch,label:ch,x,y,w:kw,h:kh});x+=kw+gap;}
+    if(r===2){keys.push({k:"Backspace",label:"⌫",x,y,w:wide,h:kh});}
+  });
+  if(withSpace){const y=y0+3*(kh+gap);keys.push({k:" ",label:"SPACE",x:W/2-130,y,w:260,h:34});}
+  return keys;
+}
+function drawKeyboard(g,keys,colorOf){
+  g.textAlign="center";g.textBaseline="middle";
+  for(const k of keys){
+    const c=colorOf?colorOf(k.k):null;
+    g.fillStyle=c||"#3a3256";roundRect(g,k.x,k.y,k.w,k.h,7);g.fill();
+    g.fillStyle="#fff";g.font=(k.label.length>1?"bold 13px":"bold 18px")+" Atkinson Hyperlegible, system-ui, sans-serif";g.fillText(k.label,k.x+k.w/2,k.y+k.h/2+1);
+  }
+  g.textBaseline="alphabetic";
+}
+function keyAt(keys,x,y){return keys.find(k=>x>=k.x&&x<=k.x+k.w&&y>=k.y&&y<=k.y+k.h);}
+// typed characters from the physical keyboard and taps on the on-screen one
+function readTyping(inp,keys){
+  const out=[...(inp.text||[])];
+  for(const t of (inp.taps||[])){const k=keyAt(keys,t.x,t.y);if(k)out.push(k.k);}
+  return out;
+}
+function wrapText(g,text,x,y,maxW,lh){
+  const words=String(text).split(/\s+/);let line="",yy=y;
+  for(const w of words){const test=line?line+" "+w:w;if(g.measureText(test).width>maxW&&line){g.fillText(line,x,yy);line=w;yy+=lh;}else line=test;}
+  if(line)g.fillText(line,x,yy);return yy;
+}
+
+// ---------- RARE FIND (rare-answer trivia) ----------
+function RareGame(api){
+  const T=(c,u,r)=>({c:c.split(","),u:u.split(","),r:r.split(",")});
+  const PROMPTS=[
+    {p:"Name a prime number less than 100.",t:T("2,3,5,7,11,13","17,19,23,29,31,37,41,43,47","53,59,61,67,71,73,79,83,89,97")},
+    {p:"Name a multiple of 7 between 1 and 100.",t:T("7,14,21,28,35,49,70","42,56,63,77","84,91,98")},
+    {p:"Name a perfect square less than 200.",t:T("1,4,9,16,25,36,49,64,81,100","121,144","169,196")},
+    {p:"Name a two-digit number divisible by both 3 and 4.",t:T("12,24,36,48","60,72","84,96")},
+    {p:"Name a two-digit number whose digits add up to 10.",t:T("19,55,91","28,82,37,73","46,64")},
+    {p:"Name a fraction equal to 1/2 (like 3/6).",frac:true},
+    {p:"Name a polygon (a flat shape with straight sides).",t:T("triangle,square,rectangle,pentagon,hexagon,octagon","heptagon,nonagon,decagon,rhombus,trapezoid,parallelogram,quadrilateral","dodecagon,hendecagon,undecagon,kite,trapezium,icosagon,rhomboid,septagon")},
+    {p:"Name a 3D shape.",t:T("cube,sphere,cylinder,cone,pyramid,prism","rectangular prism,triangular prism,cuboid,hemisphere,square pyramid","tetrahedron,octahedron,dodecahedron,icosahedron,torus,frustum,ellipsoid,pentagonal prism,hexagonal prism,triangular pyramid,polyhedron")},
+    {p:"Name a unit for measuring length or distance.",t:T("inch,foot,feet,yard,mile,meter,centimeter,millimeter,kilometer","decimeter,nanometer,micrometer,light year,nautical mile","furlong,league,fathom,cubit,parsec,angstrom,hand,rod,chain,astronomical unit,micron")},
+    {p:"Name a math word that starts with P.",t:T("plus,pi,percent,perimeter,prime,product","parallel,perpendicular,polygon,proportion,pyramid,parabola,place value,point,power,probability,pentagon,protractor,prism","parallelogram,polynomial,permutation,parameter,pythagorean theorem,pattern,positive,plane,polyhedron,period,proof,profit")},
+    {p:"Name a fruit.",t:T("apple,banana,orange,grape,strawberry,watermelon,pineapple,mango,peach,pear,cherry,lemon,blueberry","kiwi,plum,lime,raspberry,blackberry,coconut,papaya,cantaloupe,pomegranate,apricot,grapefruit,nectarine,cranberry,honeydew,tangerine,fig,avocado,tomato","dragonfruit,dragon fruit,lychee,guava,persimmon,kumquat,starfruit,jackfruit,durian,passion fruit,passionfruit,quince,gooseberry,elderberry,mulberry,rambutan,plantain,date,clementine,boysenberry,huckleberry")},
+    {p:"Name a vegetable.",t:T("carrot,broccoli,potato,corn,lettuce,peas,green beans,onion,celery,cucumber,spinach","cauliflower,cabbage,pepper,zucchini,asparagus,kale,mushroom,beet,radish,squash,sweet potato,eggplant,garlic","artichoke,kohlrabi,rutabaga,parsnip,turnip,leek,okra,bok choy,jicama,fennel,chard,brussels sprouts,arugula,endive,watercress,yam,shallot,daikon")},
+    {p:"Name a U.S. state.",t:T("california,texas,florida,new york,illinois,hawaii,alaska,washington,georgia,ohio,michigan","indiana,wisconsin,arizona,nevada,colorado,oregon,utah,tennessee,virginia,pennsylvania,new jersey,massachusetts,minnesota,iowa,missouri,kentucky,louisiana,alabama,north carolina,south carolina,oklahoma,kansas,arkansas,mississippi,connecticut,maryland","montana,wyoming,idaho,north dakota,south dakota,nebraska,new mexico,maine,vermont,new hampshire,rhode island,delaware,west virginia")},
+    {p:"Name a country in Europe.",t:T("france,germany,italy,spain,england,united kingdom,uk,ireland,poland,greece","portugal,netherlands,belgium,switzerland,austria,sweden,norway,denmark,finland,ukraine,russia,scotland,wales,croatia,hungary,czech republic,czechia,romania","iceland,estonia,latvia,lithuania,slovenia,slovakia,serbia,bosnia,montenegro,albania,north macedonia,macedonia,moldova,belarus,luxembourg,liechtenstein,monaco,andorra,san marino,malta,cyprus,bulgaria,vatican city,kosovo")},
+    {p:"Name an animal that lives in the ocean.",t:T("shark,whale,dolphin,fish,octopus,jellyfish,crab,starfish,turtle,sea turtle,seal","squid,stingray,lobster,shrimp,eel,seahorse,orca,walrus,sea lion,clam,coral,manatee,sea otter,swordfish,tuna,sea urchin,oyster","narwhal,anglerfish,krill,barnacle,nudibranch,cuttlefish,manta ray,beluga,sea cucumber,hagfish,lamprey,oarfish,dugong,plankton,sea anemone,anemone,isopod,sunfish,marlin,barracuda,sea star,mussel,scallop")},
+    {p:"Name a color.",t:T("red,blue,green,yellow,orange,purple,pink,black,white,brown,gray,grey","teal,turquoise,navy,maroon,magenta,lavender,beige,gold,silver,violet,indigo,cyan,tan,peach,coral,crimson","chartreuse,vermilion,cerulean,mauve,ochre,periwinkle,fuchsia,burgundy,sienna,umber,aquamarine,mahogany,scarlet,amber,ivory,khaki,saffron,taupe,puce")},
+    {p:"Name a planet or dwarf planet.",t:T("earth,mars,jupiter,saturn,venus","mercury,uranus,neptune,pluto","ceres,eris,makemake,haumea")},
+    {p:"Name a sport.",t:T("soccer,basketball,football,baseball,tennis,volleyball,hockey,golf,swimming","softball,lacrosse,wrestling,track,gymnastics,bowling,badminton,cricket,rugby,skiing,boxing,cheer,cheerleading,skateboarding,surfing","curling,fencing,water polo,polo,archery,rowing,handball,squash,bobsled,luge,biathlon,pickleball,ultimate frisbee,jai alai,kabaddi,triathlon,equestrian")},
+    {p:"Name a word that means \"big.\"",t:T("big,large,huge,giant,enormous","gigantic,massive,immense,vast,colossal,tremendous,jumbo,mega","gargantuan,mammoth,titanic,monumental,humongous,prodigious,behemoth,monstrous,hulking,whopping,ginormous,elephantine,astronomical,mountainous")},
+    {p:"Name a musical instrument.",t:T("piano,guitar,drums,violin,flute,trumpet","saxophone,clarinet,cello,trombone,harp,ukulele,xylophone,tuba,bass,keyboard,harmonica,oboe","bassoon,piccolo,viola,banjo,mandolin,accordion,didgeridoo,sitar,bagpipes,glockenspiel,timpani,french horn,marimba,triangle,tambourine,lute,harpsichord,theremin,kazoo,cowbell")},
+    {p:"Name a part of the human body.",t:T("arm,leg,hand,foot,head,eye,nose,ear,mouth,heart","elbow,knee,shoulder,ankle,wrist,stomach,lungs,lung,brain,liver,finger,toe,chin,neck,kidney","spleen,pancreas,femur,clavicle,sternum,patella,tibia,fibula,uvula,appendix,gallbladder,esophagus,trachea,diaphragm,cornea,pupil,retina,cochlea,larynx")}
+  ];
+  const PTS={c:10,u:25,r:50}, NAME={c:"COMMON",u:"UNCOMMON",r:"RARE!"}, COL={c:"#a69fcf",u:"#3fe0ff",r:"#ffd23f"};
+  const norm=s=>String(s).toLowerCase().replace(/[^a-z0-9\/ ]/g,"").replace(/\s+/g," ").trim().replace(/^(a|an|the) /,"");
+  let order=[],cur,typed,phase,timer,result,dug,t=0,keys=kbLayout(292,true),blink=0;
+  function judge(ans){
+    const a=norm(ans); if(!a) return null;
+    if(cur.frac){const m=a.match(/^(\d+)\s*\/\s*(\d+)$/);if(!m)return null;const n=+m[1],d=+m[2];if(!n||d!==2*n)return null;return d<=10?"c":d<=50?"u":"r";}
+    const forms=[a,a.replace(/es$/,""),a.replace(/s$/,"")];
+    for(const tier of ["r","u","c"]) if(cur.t[tier].some(x=>forms.includes(x))) return tier;
+    return null;
+  }
+  function next(){ if(!order.length) order=shuffle(PROMPTS.map((_,i)=>i)); cur=PROMPTS[order.pop()]; typed=""; phase="ask"; timer=20; result=null; }
+  function reset(){order=[];dug=0;next();}
+  function startLife(){ if(phase!=="ask"||!cur) next(); }
+  function submit(){
+    const tier=judge(typed);
+    if(tier){api.add(PTS[tier]);dug+=PTS[tier];}
+    const examples=cur.frac?["37/74","50/100","125/250"]:shuffle(cur.t.r).slice(0,3);
+    result={tier,ans:typed.trim()||"(no answer)",examples};phase="result";timer=2.6;
+  }
+  function update(dt,inp){
+    t+=dt;blink+=dt;
+    if(phase==="ask"){
+      timer-=dt;
+      for(const k of readTyping(inp,keys)){
+        if(k==="Enter"){ if(typed.trim()){submit();break;} }
+        else if(k==="Backspace") typed=typed.slice(0,-1);
+        else if(k.length===1&&typed.length<28&&/[A-Za-z0-9 \/\-']/.test(k)) typed+=k.toLowerCase();
+      }
+      if(phase==="ask"&&timer<=0) submit();
+    } else if(phase==="result"){
+      timer-=dt;
+      if(timer<=0){ const lost=!result.tier; next(); if(lost){api.lose();return;} }
+    }
+  }
+  function draw(g){
+    const bg=g.createLinearGradient(0,0,0,H);bg.addColorStop(0,"#1b1438");bg.addColorStop(1,"#0b0920");g.fillStyle=bg;g.fillRect(0,0,W,H);
+    // dig meter on the left: deeper = more points
+    const depth=Math.min(1,dug/600);g.fillStyle="#2a2150";g.fillRect(14,18,14,280);g.fillStyle="#ffd23f";g.fillRect(14,18,14,280*depth);
+    g.fillStyle="#a69fcf";g.font="10px Silkscreen, monospace";g.textAlign="left";g.fillText("DIG",8,312);g.fillText(dug+"m",8,326);
+    g.textAlign="center";g.fillStyle="#86f56a";g.font="13px Silkscreen, monospace";g.fillText("RARE FIND · RARER ANSWERS SCORE MORE",W/2,30);
+    g.fillStyle="#f4f0ff";g.font="bold 24px Atkinson Hyperlegible, system-ui, sans-serif";wrapText(g,cur.p,W/2,72,520,28);
+    if(phase==="ask"){
+      g.fillStyle="#2a2150";roundRect(g,90,128,460,52,10);g.fill();g.strokeStyle="#3fe0ff";g.lineWidth=2;g.stroke();
+      g.fillStyle="#fff";g.font="bold 24px Atkinson Hyperlegible, system-ui, sans-serif";g.textAlign="left";
+      const shown=typed+(Math.floor(blink*2)%2?"":"|");g.fillText(shown||"|",106,162);
+      g.textAlign="center";g.fillStyle="#a69fcf";g.font="14px Atkinson Hyperlegible, system-ui, sans-serif";g.fillText("Type your answer, then press Enter.  Common 10 · Uncommon 25 · Rare 50",W/2,206);
+      const f=Math.max(0,timer/20);g.fillStyle="#2a2150";g.fillRect(90,222,460,10);g.fillStyle=f<.3?"#ff6170":"#86f56a";g.fillRect(90,222,460*f,10);
+      g.fillStyle="#f4f0ff";g.font="12px Silkscreen, monospace";g.fillText(Math.ceil(timer)+"s",W/2,252);
+    } else {
+      const r=result;g.font="bold 22px Atkinson Hyperlegible, system-ui, sans-serif";g.fillStyle="#f4f0ff";g.fillText("“"+r.ans+"”",W/2,152);
+      g.font="34px Silkscreen, monospace";g.fillStyle=r.tier?COL[r.tier]:"#ff6170";g.fillText(r.tier?NAME[r.tier]+" +"+PTS[r.tier]:"NOT ON OUR LIST",W/2,198);
+      g.font="15px Atkinson Hyperlegible, system-ui, sans-serif";g.fillStyle="#a69fcf";g.fillText("Rare answers: "+r.examples.join(", "),W/2,236);
+      if(!r.tier){g.fillStyle="#ff6170";g.fillText("No points this time, so the round ends.",W/2,262);}
+    }
+    drawKeyboard(g,keys);
+  }
+  return {reset,startLife,update,draw,textInput:true,hint:"Type an answer that fits. The rarer your correct answer, the more points. An answer that isn't on the list ends the round."};
+}
+
+// ---------- LETTER LOCK (five-letter word puzzle) ----------
+function WordGame(api){
+  const WORDS=("ANGLE ARRAY BASES CHORD CUBED DIGIT EQUAL GRAPH HALVE INPUT LINES MINUS RATIO SLOPE SOLVE TIMES TOTAL UNITS VALUE WIDTH ROUND PRIME POINT SCALE RANGE SHAPE SPACE PLANE ROOTS SOLID "+
+    "APPLE BEACH BRAIN BREAD BRICK CANDY CHAIR CLOUD CRANE DANCE EAGLE EARTH FLAME FROST GHOST GIANT GLOBE GRAPE GRASS HEART HONEY HOUSE JELLY LEMON LIGHT MAGIC MANGO MONEY MUSIC NIGHT OCEAN OLIVE "+
+    "PAINT PANDA PARTY PEACH PIANO PIZZA PLANT QUEEN RADIO RIVER ROBOT SALAD SHARK SHEEP SMILE SNAKE SPOON STONE STORM SUGAR TABLE TIGER TOAST TRAIN TRUCK WATER WHALE WORLD ZEBRA SPICE CRISP "+
+    "FLOAT BLOCK CHESS CLOCK SKATE BRAVE THUMB TOWER BENCH BOARD CHALK EXTRA FIELD GLASS HAPPY JUICE KNOCK LAUGH MARCH NOTES ORBIT PAPER QUIET RULER STUDY TEACH UPPER VOICE WRITE YOUTH CLASS "+
+    "LUNCH RECESS QUILT SPORT SWEET TASTE THINK TRUST UNCLE VIVID WHEAT YIELD BLOOM CHARM DREAM FRESH GRADE LEARN").split(" ").filter(w=>w.length===5);
+  const keys=kbLayout(330,false);
+  let word,rows,typed,state,msg,msgT,used=[],t=0,flip=0;
+  function newWord(){ if(!used.length) used=shuffle(WORDS.slice()); word=used.pop(); rows=[]; typed=""; state="play"; msg=""; msgT=0; }
+  function reset(){used=[];newWord();}
+  function startLife(){ if(state!=="play") newWord(); }
+  function score(guess){
+    const res=Array(5).fill("x"), left={};
+    for(let i=0;i<5;i++){ if(guess[i]===word[i]) res[i]="g"; else left[word[i]]=(left[word[i]]||0)+1; }
+    for(let i=0;i<5;i++) if(res[i]!=="g"&&left[guess[i]]){ res[i]="y"; left[guess[i]]--; }
+    return res;
+  }
+  function keyColor(ch){
+    let best=null; for(const r of rows) for(let i=0;i<5;i++) if(r.g[i]===ch){ const s=r.s[i]; if(s==="g") best="g"; else if(s==="y"&&best!=="g") best="y"; else if(!best) best="x"; }
+    return best==="g"?"#3f9b4f":best==="y"?"#c9a227":best==="x"?"#1f1a33":null;
+  }
+  function update(dt,inp){
+    t+=dt; if(msgT>0) msgT-=dt; if(flip>0) flip-=dt;
+    if(state!=="play"){ if(flip<=0){ const lost=state==="lost"; newWord(); if(lost){ api.lose(); return; } } return; }
+    for(const k of readTyping(inp,keys)){
+      if(k==="Enter"){
+        if(typed.length<5){ msg="Not enough letters"; msgT=1.2; continue; }
+        const s=score(typed); rows.push({g:typed,s}); flip=.35;
+        if(typed===word){ const pts=50+(7-rows.length)*50; api.add(pts); state="won"; msg="Solved! +"+pts; msgT=2; flip=2; }
+        else if(rows.length>=6){ state="lost"; msg="The word was "+word; msgT=2.6; flip=2.6; }
+        typed=""; break;
+      } else if(k==="Backspace") typed=typed.slice(0,-1);
+      else if(/^[a-zA-Z]$/.test(k)&&typed.length<5) typed+=k.toUpperCase();
+    }
+  }
+  function draw(g){
+    g.fillStyle="#120e26";g.fillRect(0,0,W,H);
+    const ts=44,gap=6,x0=(W-(5*ts+4*gap))/2,y0=18;
+    for(let r=0;r<6;r++)for(let c=0;c<5;c++){
+      const x=x0+c*(ts+gap),y=y0+r*(ts+gap),row=rows[r];
+      let ch="",fill="#120e26",stroke="#3a3256";
+      if(row){ch=row.g[c];fill=row.s[c]==="g"?"#3f9b4f":row.s[c]==="y"?"#c9a227":"#2a2440";stroke=fill;}
+      else if(r===rows.length&&state==="play"){ch=typed[c]||"";if(ch)stroke="#a69fcf";}
+      g.fillStyle=fill;g.fillRect(x,y,ts,ts);g.strokeStyle=stroke;g.lineWidth=2;g.strokeRect(x+1,y+1,ts-2,ts-2);
+      if(ch){g.fillStyle="#fff";g.font="bold 24px Atkinson Hyperlegible, system-ui, sans-serif";g.textAlign="center";g.fillText(ch,x+ts/2,y+ts/2+8);}
+    }
+    g.textAlign="left";g.fillStyle="#86f56a";g.font="12px Silkscreen, monospace";g.fillText("LETTER LOCK",14,24);
+    g.fillStyle="#a69fcf";g.font="12px Atkinson Hyperlegible, system-ui, sans-serif";
+    g.fillText("Green: right spot",14,46);g.fillText("Gold: in the word",14,62);g.fillText("Gray: not in it",14,78);
+    if(msgT>0||state!=="play"){g.textAlign="center";g.fillStyle="rgba(0,0,0,.75)";roundRect(g,W/2-140,y0+128,280,44,10);g.fill();g.fillStyle=state==="won"?"#86f56a":state==="lost"?"#ffd23f":"#fff";
+      g.font="bold 20px Atkinson Hyperlegible, system-ui, sans-serif";g.fillText(msg,W/2,y0+157);}
+    drawKeyboard(g,keys,keyColor);
+  }
+  return {reset,startLife,update,draw,textInput:true,hint:"Guess the five-letter word in 6 tries. Type letters and press Enter. Fewer guesses score more. Running out of guesses ends the round."};
+}
+
+// ---------- SUNSET DRIVE (open-city delivery driving, school-safe) ----------
+function DriveGame(api){
+  const TS=48, N=42; // 42x42 tiles world
+  // tile types: 0 building, 1 road, 2 park, 3 water, 4 sand
+  let map=[], bcol=[];
+  function build(){
+    map=[];bcol=[];
+    for(let y=0;y<N;y++){const row=[],cr=[];for(let x=0;x<N;x++){
+      let v=0; const road=(x%7===1||x%7===2)||(y%7===1||y%7===2);
+      if(x>=N-4) v=x>=N-2?3:4; else if(y<1||x<1||y>=N-1) v=3; else if(road) v=1; else v=((x*13+y*7)%11===0||(Math.floor(x/7)+Math.floor(y/7))%5===0)?2:0;
+      row.push(v);cr.push(["#ff7eb6","#5ee0d6","#b28dff","#ffb86b","#7aa2ff"][(Math.floor(x/7)*3+Math.floor(y/7))%5]);}
+      map.push(row);bcol.push(cr);}
+    for(let y=1;y<N-1;y++){ map[y][N-5]=1; map[y][N-6]=1; } // beach boulevard
+  }
+  const at=(px,py)=>{const x=Math.floor(px/TS),y=Math.floor(py/TS);return (x<0||y<0||x>=N||y>=N)?3:map[y][x];};
+  const drivable=(px,py)=>{const v=at(px,py);return v===1||v===4;};
+  const roadTiles=()=>{const out=[];for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(map[y][x]===1)out.push([x,y]);return out;};
+  let car,traffic,coins,job,hits,t=0,cam,flash=0,banner=0,roads,deliv=0,delivPts=0;
+  function spot(){const r=roads[Math.floor(Math.random()*roads.length)];return{x:r[0]*TS+TS/2,y:r[1]*TS+TS/2};}
+  function newJob(){ const p=spot(); let d; do{ d=spot(); }while(Math.hypot(d.x-p.x,d.y-p.y)<700); job={stage:"pickup",p,d,t:0}; }
+  function reset(){ build(); roads=roadTiles(); coins=[];for(let i=0;i<40;i++)coins.push({...spot(),alive:true}); traffic=[]; for(let i=0;i<22;i++){const s=spot();const dirs=[[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy])=>drivable(s.x+dx*TS,s.y+dy*TS));const d=dirs[Math.floor(Math.random()*dirs.length)]||[1,0];
+      traffic.push({x:s.x,y:s.y,dx:d[0],dy:d[1],sp:rand(70,120),col:["#f4f0ff","#ffd23f","#86f56a","#ff9a3c","#3fe0ff"][i%5]});}
+    newJob(); startLife(); }
+  function startLife(){ car={x:1.5*TS+TS,y:1.5*TS+TS,a:0,v:0}; hits=0; flash=1.2; banner=0; }
+  function update(dt,inp){
+    t+=dt; if(flash>0)flash-=dt; if(banner>0)banner-=dt; if(deliv>0)deliv-=dt; job.t+=dt;
+    const acc=inp.held.up?320:inp.held.down?-380:0;
+    car.v+=acc*dt; if(!inp.held.up&&!inp.held.down) car.v*=Math.pow(0.35,dt);
+    car.v=clamp(car.v,-130,280);
+    const steer=(inp.held.left?-1:0)+(inp.held.right?1:0);
+    car.a+=steer*dt*2.6*clamp(Math.abs(car.v)/120,0,1)*Math.sign(car.v||1);
+    const off=at(car.x,car.y)===2?0.55:1; // grass slows you down
+    const nx=car.x+Math.cos(car.a)*car.v*dt*off, ny=car.y+Math.sin(car.a)*car.v*dt*off;
+    const ok=(x,y)=>{for(const [ox,oy] of [[-9,-9],[9,-9],[-9,9],[9,9]]){const v=at(x+ox,y+oy);if(v===0||v===3)return false;}return true;};
+    if(ok(nx,ny)){car.x=nx;car.y=ny;} else if(ok(nx,car.y)){car.x=nx;car.v*=.6;} else if(ok(car.x,ny)){car.y=ny;car.v*=.6;} else car.v*=-0.3;
+    // traffic follows the roads and turns at corners
+    for(const c of traffic){
+      const tx=Math.floor(c.x/TS),ty=Math.floor(c.y/TS),cx=tx*TS+TS/2,cy=ty*TS+TS/2;
+      const near=Math.abs(c.x-cx)<c.sp*dt+0.5&&Math.abs(c.y-cy)<c.sp*dt+0.5;
+      if(near&&(c.lt!==tx+","+ty)){c.lt=tx+","+ty;c.x=cx;c.y=cy;
+        const opts=[[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy])=>!(dx===-c.dx&&dy===-c.dy)&&at(cx+dx*TS,cy+dy*TS)===1);
+        if(opts.length&&(Math.random()<.35||!opts.some(([dx,dy])=>dx===c.dx&&dy===c.dy))){const o=opts[Math.floor(Math.random()*opts.length)];c.dx=o[0];c.dy=o[1];}
+        else if(!opts.length){c.dx=-c.dx;c.dy=-c.dy;}}
+      c.x+=c.dx*c.sp*dt;c.y+=c.dy*c.sp*dt;
+      if(flash<=0&&Math.hypot(c.x-car.x,c.y-car.y)<22){hits++;flash=1.5;car.v*=-0.4;banner=1.2;
+        if(hits>=3){api.lose();return;}}
+    }
+    for(const k of coins) if(k.alive&&Math.hypot(k.x-car.x,k.y-car.y)<22){k.alive=false;api.add(5);}
+    if(coins.every(k=>!k.alive)) coins.forEach(k=>{Object.assign(k,spot());k.alive=true;});
+    const tgt=job.stage==="pickup"?job.p:job.d;
+    if(Math.hypot(tgt.x-car.x,tgt.y-car.y)<30){
+      if(job.stage==="pickup"){job.stage="drop";job.t=0;}
+      else {const bonus=Math.max(0,Math.round(60-job.t))*3;delivPts=100+bonus;api.add(delivPts);newJob();deliv=1.6;}
+    }
+    cam={x:clamp(car.x-W/2,0,N*TS-W),y:clamp(car.y-H/2,0,N*TS-H)};
+  }
+  function draw(g){
+    if(!cam) cam={x:clamp(car.x-W/2,0,N*TS-W),y:clamp(car.y-H/2,0,N*TS-H)};
+    g.fillStyle="#1a1530";g.fillRect(0,0,W,H);
+    g.save();g.translate(-Math.round(cam.x),-Math.round(cam.y));
+    const x0=Math.floor(cam.x/TS),y0=Math.floor(cam.y/TS);
+    for(let y=y0;y<=y0+H/TS+1&&y<N;y++)for(let x=x0;x<=x0+W/TS+1&&x<N;x++){
+      const v=map[y][x],X=x*TS,Y=y*TS;
+      if(v===1){g.fillStyle="#2b2442";g.fillRect(X,Y,TS,TS);
+        if((x%7===1)&&!(y%7===1||y%7===2)){g.fillStyle="#ffd23f";for(let k=4;k<TS;k+=16)g.fillRect(X+TS-2,Y+k,3,8);}
+        if((y%7===1)&&!(x%7===1||x%7===2)){g.fillStyle="#ffd23f";for(let k=4;k<TS;k+=16)g.fillRect(X+k,Y+TS-2,8,3);}}
+      else if(v===0){g.fillStyle="#241d3d";g.fillRect(X,Y,TS,TS);g.fillStyle=bcol[y][x];g.fillRect(X+4,Y+4,TS-8,TS-8);
+        g.fillStyle="rgba(0,0,0,.25)";g.fillRect(X+4,Y+TS-12,TS-8,8);g.fillStyle="rgba(255,255,255,.55)";for(let i=0;i<3;i++)g.fillRect(X+10+i*11,Y+12,6,6);}
+      else if(v===2){g.fillStyle="#2f6b45";g.fillRect(X,Y,TS,TS);if((x+y)%2===0){g.fillStyle="#7a5a2c";g.fillRect(X+22,Y+20,4,18);g.fillStyle="#4fbf6a";for(let a=0;a<5;a++){g.save();g.translate(X+24,Y+20);g.rotate(a*1.25+.3);g.fillRect(0,-2,14,4);g.restore();}}}
+      else if(v===3){g.fillStyle="#1f6f8b";g.fillRect(X,Y,TS,TS);g.fillStyle="rgba(255,255,255,.18)";g.fillRect(X+((t*20+y*13)%TS),Y+10,10,2);}
+      else if(v===4){g.fillStyle="#e9c98f";g.fillRect(X,Y,TS,TS);}
+    }
+    for(const k of coins)if(k.alive){g.fillStyle="#ffd23f";g.beginPath();g.arc(k.x,k.y,6+Math.sin(t*6+k.x)*1,0,7);g.fill();}
+    const tgt=job.stage==="pickup"?job.p:job.d, tc=job.stage==="pickup"?"#3fe0ff":"#86f56a";
+    g.strokeStyle=tc;g.lineWidth=4;g.beginPath();g.arc(tgt.x,tgt.y,20+Math.sin(t*5)*4,0,7);g.stroke();
+    g.fillStyle=tc;g.font="bold 12px Atkinson Hyperlegible, sans-serif";g.textAlign="center";g.fillText(job.stage==="pickup"?"PICK UP":"DROP OFF",tgt.x,tgt.y-30);
+    for(const c of traffic){g.save();g.translate(c.x,c.y);g.rotate(Math.atan2(c.dy,c.dx));g.fillStyle=c.col;roundRect(g,-12,-7,24,14,4);g.fill();g.fillStyle="rgba(0,0,0,.45)";g.fillRect(2,-5,6,10);g.restore();}
+    if(!(flash>0&&Math.floor(t*12)%2)){g.save();g.translate(car.x,car.y);g.rotate(car.a);g.fillStyle="#ff4fa3";roundRect(g,-14,-8,28,16,5);g.fill();
+      g.fillStyle="#1a1530";g.fillRect(3,-6,7,12);g.fillStyle="#ffe7b8";g.fillRect(12,-7,3,4);g.fillRect(12,3,3,4);g.restore();}
+    g.restore();
+    // arrow toward the target
+    const dx=tgt.x-car.x,dy=tgt.y-car.y,d=Math.hypot(dx,dy);
+    if(d>200){const ang=Math.atan2(dy,dx),ax=W/2+Math.cos(ang)*170,ay=H/2+Math.sin(ang)*150;g.save();g.translate(ax,ay);g.rotate(ang);g.fillStyle=tc;g.beginPath();g.moveTo(16,0);g.lineTo(-10,-10);g.lineTo(-10,10);g.fill();g.restore();}
+    // minimap
+    const ms=2.4,mx=W-N*ms-10,my=10;g.fillStyle="rgba(10,8,26,.75)";g.fillRect(mx-4,my-4,N*ms+8,N*ms+8);
+    for(let y=0;y<N;y++)for(let x=0;x<N;x++){const v=map[y][x];if(v===1){g.fillStyle="#5d567a";g.fillRect(mx+x*ms,my+y*ms,ms,ms);}else if(v===3){g.fillStyle="#1f6f8b";g.fillRect(mx+x*ms,my+y*ms,ms,ms);}}
+    g.fillStyle=tc;g.fillRect(mx+tgt.x/TS*ms-2,my+tgt.y/TS*ms-2,5,5);g.fillStyle="#ff4fa3";g.fillRect(mx+car.x/TS*ms-2,my+car.y/TS*ms-2,5,5);
+    g.fillStyle="rgba(10,8,26,.78)";roundRect(g,6,6,300,46,8);g.fill();
+    g.textAlign="left";g.fillStyle=tc;g.font="13px Silkscreen, monospace";g.fillText(job.stage==="pickup"?"GO TO THE BLUE PICK-UP":"DELIVER TO THE GREEN DROP-OFF",12,24);
+    g.fillStyle="#ff6170";g.fillText("DENTS "+"■".repeat(hits)+"□".repeat(Math.max(0,3-hits)),12,42);
+    if(banner>0){g.textAlign="center";g.font="28px Silkscreen, monospace";g.fillStyle="#ff6170";g.fillText("BUMP! WATCH THE TRAFFIC",W/2,H-40);}
+    if(deliv>0){g.textAlign="center";g.font="28px Silkscreen, monospace";g.fillStyle="#86f56a";g.fillText("DELIVERED! +"+delivPts,W/2,H-40);}
+  }
+  return {reset,startLife,update,draw,hint:"Up to drive, Down to brake or back up, Left/Right to steer. Pick up at the blue circle, deliver to the green one. Grab coins. Three bumps with traffic end the round."};
+}
+
 function roundRect(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();}
 function star(g,x,y,R,r,c){g.fillStyle=c;g.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r:R;g.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr);}g.closePath();g.fill();}
 export function bigText(g,s,c){g.textAlign="center";g.font="40px Silkscreen, monospace";g.lineWidth=6;g.strokeStyle="#07061a";g.strokeText(s,W/2,H/2);g.fillStyle=c;g.fillText(s,W/2,H/2);}
@@ -803,6 +1078,9 @@ export const GAMES={
   stack:{name:"Block Stack",desc:"Drop blocks and clear lines.",color:"var(--violet)",make:StackGame},
   snake:{name:"Snake",desc:"Eat, grow, don't bite yourself.",color:"var(--lime)",make:SnakeGame},
   brick:{name:"Brick Breaker",desc:"Bounce the ball, smash bricks.",color:"var(--orange)",make:BrickGame},
-  hop:{name:"Sproutish",desc:"Hop through garden levels. Reach the watering can.",color:"var(--cyan)",make:api=>HopGame(api,"sprout")}
+  hop:{name:"Sproutish",desc:"Hop through garden levels. Reach the watering can.",color:"var(--cyan)",make:api=>HopGame(api,"sprout")},
+  rare:{name:"Rare Find",desc:"Name something that fits. Rare answers score big.",color:"var(--yellow)",make:RareGame},
+  word:{name:"Letter Lock",desc:"Crack the five-letter word in six guesses.",color:"var(--lime)",make:WordGame},
+  drive:{name:"Sunset Drive",desc:"Cruise a neon city and make deliveries.",color:"var(--pink)",make:DriveGame}
 };
 

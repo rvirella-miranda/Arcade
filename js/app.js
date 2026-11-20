@@ -16,7 +16,7 @@ let board = [], boardState = "idle", unwatch = null, boardGame = "maze";
 let pics = {}, picsFor = null; // question pictures for the current set: {id: dataUrl}
 
 /* ---------------- input ---------------- */
-const input = { held:{left:false,right:false,up:false,down:false,action:false}, pressed:new Set(), px:null };
+const input = { held:{left:false,right:false,up:false,down:false,action:false}, pressed:new Set(), px:null, text:[], taps:[] }; // text/taps: for the typing games
 const KEYMAP = {ArrowLeft:"left",KeyA:"left",ArrowRight:"right",KeyD:"right",ArrowUp:"up",KeyW:"up",ArrowDown:"down",KeyS:"down",Space:"action"};
 const press = k => { input.pressed.add(k); input.held[k] = true; };
 const release = k => { input.held[k] = false; };
@@ -61,7 +61,8 @@ function startRun(gid){
   A.best = getBest(gid);
   $("#hud-game").textContent = GAMES[gid].name; $("#hud-game").style.color = GAMES[gid].color;
   $("#hud-score").textContent = "0"; $("#hud-best").textContent = A.best; $("#hud-right").textContent = "0";
-  $("#hint").textContent = A.game.hint + " Press P to pause.";
+  $("#hint").textContent = A.game.hint + (A.game.textInput ? " Press Esc to pause." : " Press P to pause.");
+  $("#pad").classList.toggle("off", !!A.game.textInput);
   $("#btn-pause").textContent = "Pause";
   renderPips(); showView("play"); askQuestion();
   if(!raf){ last = performance.now(); raf = requestAnimationFrame(frame); }
@@ -191,7 +192,7 @@ function frame(ts){
     A.game.update(dt, input);
     if(A.state === "playing" && A.set.playTime){ A.timeLeft -= dt; showTime(); if(A.timeLeft <= 0) timeUp(); }
   }
-  input.pressed.clear();
+  input.pressed.clear(); input.text.length = 0; input.taps.length = 0;
   cx.save(); A.game.draw(cx); cx.restore();
   if(A.state === "ready") bigText(cx, A.readyT > 0.35 ? "GET READY" : "GO!", A.readyT > 0.35 ? "#3fe0ff" : "#5bf08a");
 }
@@ -201,6 +202,10 @@ addEventListener("keydown", e => {
   const tag = e.target.tagName || "";
   if(A.state === "question" && A.mcKeys && /^Digit[1-4]$/.test(e.code)){ const b = overlay.querySelector(`.choice[data-i="${+e.code.slice(5)-1}"]`); if(b){ e.preventDefault(); b.click(); } return; }
   if(tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+  if(A.game && A.game.textInput && (A.state === "playing" || A.state === "ready")){
+    if(e.code === "Escape"){ e.preventDefault(); if(A.state === "playing") togglePause(); return; }
+    if(e.key.length === 1 || e.key === "Backspace" || e.key === "Enter"){ e.preventDefault(); if(A.state === "playing" && !e.repeat) input.text.push(e.key); return; }
+  }
   if((e.code === "KeyP" || e.code === "Escape") && A.state === "playing"){ e.preventDefault(); togglePause(); return; }
   if(A.state !== "playing" && A.state !== "ready") return;
   const k = KEYMAP[e.code]; if(!k) return;
@@ -210,7 +215,8 @@ addEventListener("keyup", e => { const k = KEYMAP[e.code]; if(k) release(k); });
 addEventListener("blur", () => { for(const k in input.held) input.held[k] = false; });
 const logicalX = e => { const r = cv.getBoundingClientRect(); return (e.clientX - r.left) / r.width * W; };
 cv.addEventListener("pointermove", e => { if(A.gid === "brick") input.px = logicalX(e); });
-cv.addEventListener("pointerdown", e => { cv.focus?.(); if(A.gid === "brick") input.px = logicalX(e); if(A.state === "playing") press("action"); });
+const logicalY = e => { const r = cv.getBoundingClientRect(); return (e.clientY - r.top) / r.height * H; };
+cv.addEventListener("pointerdown", e => { cv.focus?.(); if(A.gid === "brick") input.px = logicalX(e); if(A.state === "playing"){ press("action"); input.taps.push({ x:logicalX(e), y:logicalY(e) }); } });
 cv.addEventListener("pointerup", () => release("action"));
 cv.addEventListener("pointerleave", () => { input.px = null; release("action"); });
 document.querySelectorAll(".pb").forEach(b => { const k = b.dataset.k;
@@ -250,7 +256,7 @@ function buildCabinets(){
     previews.push({ inst, pc:b.querySelector("canvas").getContext("2d"), gid, t:Math.random()*3 });
   }
   let pl = performance.now();
-  const ai = { held:{left:false,right:false,up:false,down:false,action:false}, pressed:new Set(), px:null };
+  const ai = { held:{left:false,right:false,up:false,down:false,action:false}, pressed:new Set(), px:null, text:[], taps:[] };
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const pick = () => ["left","right","up","down"][Math.floor(Math.random()*4)];
   (function tick(ts){
@@ -265,6 +271,9 @@ function buildCabinets(){
         if(p.gid === "stack"){ if(Math.random() < 0.05) ai.pressed.add(Math.random() < .5 ? "left" : "right"); if(Math.random() < 0.03) ai.pressed.add("up"); }
         if(p.gid === "snake" && Math.random() < 0.06) ai.pressed.add(pick());
         if(p.gid === "brick"){ ai.px = 320 + Math.sin(p.t*1.7)*200; ai.pressed.add("action"); }
+        if(p.gid === "drive"){ ai.held.up = true; ai.held.left = Math.sin(p.t*0.9) > 0.6; ai.held.right = Math.sin(p.t*1.3) < -0.7; }
+        if(p.gid === "word" && Math.random() < 0.02){ ai.text = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random()*26)]]; if(Math.random()<0.2) ai.text = ["Enter"]; } else ai.text = [];
+        if(p.gid === "rare"){ ai.text = []; }
         if(p.gid === "hop"){ ai.held.right = Math.sin(p.t*0.7) > -0.3; ai.held.left = !ai.held.right; if(Math.random() < 0.03){ ai.pressed.add("up"); } ai.held.up = Math.random() < 0.8; }
         try { p.inst.update(dt, ai); } catch {}
       }

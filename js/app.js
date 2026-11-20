@@ -271,7 +271,7 @@ function buildCabinets(){
         if(p.gid === "stack"){ if(Math.random() < 0.05) ai.pressed.add(Math.random() < .5 ? "left" : "right"); if(Math.random() < 0.03) ai.pressed.add("up"); }
         if(p.gid === "snake" && Math.random() < 0.06) ai.pressed.add(pick());
         if(p.gid === "brick"){ ai.px = 320 + Math.sin(p.t*1.7)*200; ai.pressed.add("action"); }
-        if(p.gid === "drive"){ ai.held.up = true; ai.held.left = Math.sin(p.t*0.9) > 0.6; ai.held.right = Math.sin(p.t*1.3) < -0.7; }
+        if(p.gid === "drive"){ const d = Math.floor(p.t/2.5)%4; ai.held.right = d===0; ai.held.down = d===1; ai.held.left = d===2; ai.held.up = d===3; }
         if(p.gid === "word" && Math.random() < 0.02){ ai.text = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random()*26)]]; if(Math.random()<0.2) ai.text = ["Enter"]; } else ai.text = [];
         if(p.gid === "rare"){ ai.text = []; }
         if(p.gid === "hop"){ ai.held.right = Math.sin(p.t*0.7) > -0.3; ai.held.left = !ai.held.right; if(Math.random() < 0.03){ ai.pressed.add("up"); } ai.held.up = Math.random() < 0.8; }

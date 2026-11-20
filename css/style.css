@@ -410,3 +410,5 @@ input[type=text]:focus,select:focus,textarea:focus{border-color:var(--plum);box-
 body[data-view="play"] .hero{display:none}
 body[data-view="play"] .cabinet{max-width:min(100%, calc((100vh - 170px) * 4 / 3 + 48px))}
 .pad.off{display:none!important}
+.logo-sub{font-size:.42em;letter-spacing:.03em;white-space:nowrap;vertical-align:middle;color:var(--plum);opacity:.85}
+@media (max-width:520px){.logo-sub{display:block;font-size:.4em;margin-top:6px}}

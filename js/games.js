@@ -895,7 +895,7 @@ function RareGame(api){
     // dig meter on the left: deeper = more points
     const depth=Math.min(1,dug/600);g.fillStyle="#2a2150";g.fillRect(14,18,14,280);g.fillStyle="#ffd23f";g.fillRect(14,18,14,280*depth);
     g.fillStyle="#a69fcf";g.font="10px Silkscreen, monospace";g.textAlign="left";g.fillText("DIG",8,312);g.fillText(dug+"m",8,326);
-    g.textAlign="center";g.fillStyle="#86f56a";g.font="13px Silkscreen, monospace";g.fillText("RARE FIND · RARER ANSWERS SCORE MORE",W/2,30);
+    g.textAlign="center";g.fillStyle="#86f56a";g.font="13px Silkscreen, monospace";g.fillText("CRILLION · RARER ANSWERS SCORE MORE",W/2,30);
     g.fillStyle="#f4f0ff";g.font="bold 24px Atkinson Hyperlegible, system-ui, sans-serif";wrapText(g,cur.p,W/2,72,520,28);
     if(phase==="ask"){
       g.fillStyle="#2a2150";roundRect(g,90,128,460,52,10);g.fill();g.strokeStyle="#3fe0ff";g.lineWidth=2;g.stroke();
@@ -962,7 +962,7 @@ function WordGame(api){
       g.fillStyle=fill;g.fillRect(x,y,ts,ts);g.strokeStyle=stroke;g.lineWidth=2;g.strokeRect(x+1,y+1,ts-2,ts-2);
       if(ch){g.fillStyle="#fff";g.font="bold 24px Atkinson Hyperlegible, system-ui, sans-serif";g.textAlign="center";g.fillText(ch,x+ts/2,y+ts/2+8);}
     }
-    g.textAlign="left";g.fillStyle="#86f56a";g.font="12px Silkscreen, monospace";g.fillText("LETTER LOCK",14,24);
+    g.textAlign="left";g.fillStyle="#86f56a";g.font="12px Silkscreen, monospace";g.fillText("WUHRDLE",14,24);
     g.fillStyle="#a69fcf";g.font="12px Atkinson Hyperlegible, system-ui, sans-serif";
     g.fillText("Green: right spot",14,46);g.fillText("Gold: in the word",14,62);g.fillText("Gray: not in it",14,78);
     if(msgT>0||state!=="play"){g.textAlign="center";g.fillStyle="rgba(0,0,0,.75)";roundRect(g,W/2-140,y0+128,280,44,10);g.fill();g.fillStyle=state==="won"?"#86f56a":state==="lost"?"#ffd23f":"#fff";
@@ -998,15 +998,19 @@ function DriveGame(api){
   function startLife(){ car={x:1.5*TS+TS,y:1.5*TS+TS,a:0,v:0}; hits=0; flash=1.2; banner=0; }
   function update(dt,inp){
     t+=dt; if(flash>0)flash-=dt; if(banner>0)banner-=dt; if(deliv>0)deliv-=dt; job.t+=dt;
-    const acc=inp.held.up?320:inp.held.down?-380:0;
-    car.v+=acc*dt; if(!inp.held.up&&!inp.held.down) car.v*=Math.pow(0.35,dt);
-    car.v=clamp(car.v,-130,280);
-    const steer=(inp.held.left?-1:0)+(inp.held.right?1:0);
-    car.a+=steer*dt*2.6*clamp(Math.abs(car.v)/120,0,1)*Math.sign(car.v||1);
+    // Arrow keys point the way: the car turns to face that direction and drives there.
+    const kx=(inp.held.right?1:0)-(inp.held.left?1:0), ky=(inp.held.down?1:0)-(inp.held.up?1:0);
+    if(kx||ky){
+      const want=Math.atan2(ky,kx); let diff=want-car.a; diff=Math.atan2(Math.sin(diff),Math.cos(diff));
+      const turn=7*dt; car.a+=clamp(diff,-turn,turn);
+      const facing=Math.cos(diff); // slow down while swinging around a sharp turn
+      car.v+=(facing>0.3?340:-260)*dt;
+    } else car.v*=Math.pow(0.25,dt);
+    car.v=clamp(car.v,0,280);
     const off=at(car.x,car.y)===2?0.55:1; // grass slows you down
     const nx=car.x+Math.cos(car.a)*car.v*dt*off, ny=car.y+Math.sin(car.a)*car.v*dt*off;
     const ok=(x,y)=>{for(const [ox,oy] of [[-9,-9],[9,-9],[-9,9],[9,9]]){const v=at(x+ox,y+oy);if(v===0||v===3)return false;}return true;};
-    if(ok(nx,ny)){car.x=nx;car.y=ny;} else if(ok(nx,car.y)){car.x=nx;car.v*=.6;} else if(ok(car.x,ny)){car.y=ny;car.v*=.6;} else car.v*=-0.3;
+    if(ok(nx,ny)){car.x=nx;car.y=ny;} else if(ok(nx,car.y)){car.x=nx;car.v*=.6;} else if(ok(car.x,ny)){car.y=ny;car.v*=.6;} else car.v=0;
     // traffic follows the roads and turns at corners
     for(const c of traffic){
       const tx=Math.floor(c.x/TS),ty=Math.floor(c.y/TS),cx=tx*TS+TS/2,cy=ty*TS+TS/2;
@@ -1016,7 +1020,7 @@ function DriveGame(api){
         if(opts.length&&(Math.random()<.35||!opts.some(([dx,dy])=>dx===c.dx&&dy===c.dy))){const o=opts[Math.floor(Math.random()*opts.length)];c.dx=o[0];c.dy=o[1];}
         else if(!opts.length){c.dx=-c.dx;c.dy=-c.dy;}}
       c.x+=c.dx*c.sp*dt;c.y+=c.dy*c.sp*dt;
-      if(flash<=0&&Math.hypot(c.x-car.x,c.y-car.y)<22){hits++;flash=1.5;car.v*=-0.4;banner=1.2;
+      if(flash<=0&&Math.hypot(c.x-car.x,c.y-car.y)<22){hits++;flash=1.5;car.v*=0.2;banner=1.2;
         if(hits>=3){api.lose();return;}}
     }
     for(const k of coins) if(k.alive&&Math.hypot(k.x-car.x,k.y-car.y)<22){k.alive=false;api.add(5);}
@@ -1065,7 +1069,7 @@ function DriveGame(api){
     if(banner>0){g.textAlign="center";g.font="28px Silkscreen, monospace";g.fillStyle="#ff6170";g.fillText("BUMP! WATCH THE TRAFFIC",W/2,H-40);}
     if(deliv>0){g.textAlign="center";g.font="28px Silkscreen, monospace";g.fillStyle="#86f56a";g.fillText("DELIVERED! +"+delivPts,W/2,H-40);}
   }
-  return {reset,startLife,update,draw,hint:"Up to drive, Down to brake or back up, Left/Right to steer. Pick up at the blue circle, deliver to the green one. Grab coins. Three bumps with traffic end the round."};
+  return {reset,startLife,update,draw,hint:"Press an arrow key to drive that way (up = up the screen). Let go to slow down. Pick up at the blue circle, deliver to the green one. Grab coins. Three bumps with traffic end the round."};
 }
 
 function roundRect(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();}
@@ -1079,8 +1083,8 @@ export const GAMES={
   snake:{name:"Snake",desc:"Eat, grow, don't bite yourself.",color:"var(--lime)",make:SnakeGame},
   brick:{name:"Brick Breaker",desc:"Bounce the ball, smash bricks.",color:"var(--orange)",make:BrickGame},
   hop:{name:"Sproutish",desc:"Hop through garden levels. Reach the watering can.",color:"var(--cyan)",make:api=>HopGame(api,"sprout")},
-  rare:{name:"Rare Find",desc:"Name something that fits. Rare answers score big.",color:"var(--yellow)",make:RareGame},
-  word:{name:"Letter Lock",desc:"Crack the five-letter word in six guesses.",color:"var(--lime)",make:WordGame},
-  drive:{name:"Sunset Drive",desc:"Cruise a neon city and make deliveries.",color:"var(--pink)",make:DriveGame}
+  rare:{name:"Crillion",desc:"Name something that fits. Rare answers score big.",color:"var(--yellow)",make:RareGame},
+  word:{name:"Wuhrdle",desc:"Crack the five-letter word in six guesses.",color:"var(--lime)",make:WordGame},
+  drive:{name:"Grand Theft Algebra",desc:"Cruise a neon city and make deliveries.",color:"var(--pink)",make:DriveGame}
 };
 

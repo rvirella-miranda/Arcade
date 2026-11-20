@@ -409,3 +409,4 @@ input[type=text]:focus,select:focus,textarea:focus{border-color:var(--plum);box-
 /* while a game is open, drop the big title so the cabinet gets the room */
 body[data-view="play"] .hero{display:none}
 body[data-view="play"] .cabinet{max-width:min(100%, calc((100vh - 170px) * 4 / 3 + 48px))}
+.pad.off{display:none!important}
